@@ -13,12 +13,31 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Configure CORS properly for all routes
+const corsOptions = {
+  origin: true, // Allow requests from any origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
+// Log CORS requests if debug is enabled
+if (process.env.CORS_DEBUG === 'true') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    console.log('Origin:', req.headers.origin);
+    console.log('Headers:', req.headers);
+    next();
+  });
+}
+
 // Configure multer for file uploads
-const UPLOAD_DIRECTORY = path.join(__dirname, 'uploads');
+const UPLOAD_DIRECTORY = path.join(__dirname, process.env.UPLOAD_DIR || 'uploads');
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOAD_DIRECTORY)) {
@@ -50,6 +69,14 @@ const upload = multer({
     cb(null, true);
   }
 });
+
+// Specifically handle OPTIONS requests for /api/menu-items/:id
+app.options('/api/menu-items/:id', cors(corsOptions));
+app.options('/api/offers/:id', cors(corsOptions));
+
+// Specifically handle OPTIONS requests for file uploads
+app.options('/api/menu-items', cors(corsOptions));
+app.options('/api/offers', cors(corsOptions));
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -824,8 +851,8 @@ app.post('/api/contact', async (req, res) => {
 });
 
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-console.log(`Serving uploads from: ${path.join(__dirname, 'uploads')}`);
+console.log(`Serving uploads from: ${UPLOAD_DIRECTORY}`);
+app.use('/uploads', express.static(UPLOAD_DIRECTORY));
 
 // API route to get the upload directory path
 app.get('/api/upload-path', (req, res) => {
@@ -848,4 +875,10 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Upload directory: ${UPLOAD_DIRECTORY}`);
+  
+  // List the contents of the upload directory
+  if (fs.existsSync(UPLOAD_DIRECTORY)) {
+    const files = fs.readdirSync(UPLOAD_DIRECTORY);
+    console.log('Files in uploads directory:', files);
+  }
 });

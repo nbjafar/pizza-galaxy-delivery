@@ -10,7 +10,32 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important for CORS with credentials
 });
+
+// Add request interceptor for debugging
+api.interceptors.request.use(
+  config => {
+    console.log('API Request:', config.method?.toUpperCase(), config.url);
+    return config;
+  },
+  error => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  response => {
+    console.log('API Response:', response.status, response.config.url);
+    return response;
+  },
+  error => {
+    console.error('API Response Error:', error.response || error);
+    return Promise.reject(error);
+  }
+);
 
 // Auth API
 export const login = async (username: string, password: string) => {
@@ -77,6 +102,12 @@ export const addMenuItem = async (
     let response;
     
     if (item instanceof FormData) {
+      // Log FormData contents for debugging
+      console.log('FormData contents:');
+      for (const pair of (item as any).entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
+      
       // File upload with FormData
       response = await api.post('/menu-items', item, {
         headers: {
@@ -84,7 +115,7 @@ export const addMenuItem = async (
         },
       });
     } else {
-      // Handle file upload with FormData for regular JSON objects
+      // Handle JSON objects by creating FormData
       const formData = new FormData();
       Object.entries(item).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
@@ -95,6 +126,12 @@ export const addMenuItem = async (
           formData.append(key, String(value));
         }
       });
+
+      // Log FormData contents for debugging
+      console.log('Converted FormData contents:');
+      for (const pair of (formData as any).entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
 
       response = await api.post('/menu-items', formData, {
         headers: {
@@ -107,7 +144,13 @@ export const addMenuItem = async (
     return response.data;
   } catch (error) {
     console.error('Error adding menu item:', error);
-    toast.error('Failed to add menu item');
+    
+    if (axios.isAxiosError(error) && error.response) {
+      toast.error(`Failed to add menu item: ${error.response.data.message || error.message}`);
+    } else {
+      toast.error('Failed to add menu item');
+    }
+    
     throw error;
   }
 };
@@ -120,14 +163,19 @@ export const updateMenuItem = async (
     let response;
     
     if (updates instanceof FormData) {
-      // File upload with FormData
+      // Log FormData contents for debugging
+      console.log('Update FormData contents:');
+      for (const pair of (updates as any).entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
+      
       response = await api.put(`/menu-items/${id}`, updates, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
     } else {
-      // Handle file upload with FormData for regular JSON objects
+      // Convert to FormData
       const formData = new FormData();
       Object.entries(updates).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
@@ -138,6 +186,12 @@ export const updateMenuItem = async (
           formData.append(key, String(value));
         }
       });
+
+      // Log converted FormData contents for debugging
+      console.log('Converted Update FormData contents:');
+      for (const pair of (formData as any).entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
 
       response = await api.put(`/menu-items/${id}`, formData, {
         headers: {
@@ -150,7 +204,13 @@ export const updateMenuItem = async (
     return response.data;
   } catch (error) {
     console.error(`Error updating menu item ${id}:`, error);
-    toast.error('Failed to update menu item');
+    
+    if (axios.isAxiosError(error) && error.response) {
+      toast.error(`Failed to update menu item: ${error.response.data.message || error.message}`);
+    } else {
+      toast.error('Failed to update menu item');
+    }
+    
     return undefined;
   }
 };
@@ -186,14 +246,19 @@ export const addOffer = async (
     let response;
     
     if (offer instanceof FormData) {
-      // File upload with FormData
+      // Log FormData contents for debugging
+      console.log('Offer FormData contents:');
+      for (const pair of (offer as any).entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
+      }
+      
       response = await api.post('/offers', offer, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
     } else {
-      // Handle file upload with FormData for regular JSON objects
+      // Create FormData for regular JSON objects
       const formData = new FormData();
       Object.entries(offer).forEach(([key, value]) => {
         if (key === 'imageFile' && value instanceof File) {
@@ -216,7 +281,13 @@ export const addOffer = async (
     return response.data;
   } catch (error) {
     console.error('Error adding offer:', error);
-    toast.error('Failed to add offer');
+    
+    if (axios.isAxiosError(error) && error.response) {
+      toast.error(`Failed to add offer: ${error.response.data.message || error.message}`);
+    } else {
+      toast.error('Failed to add offer');
+    }
+    
     throw error;
   }
 };
@@ -229,14 +300,13 @@ export const updateOffer = async (
     let response;
     
     if (updates instanceof FormData) {
-      // File upload with FormData
       response = await api.put(`/offers/${id}`, updates, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
     } else {
-      // Handle file upload with FormData for regular JSON objects
+      // Convert to FormData
       const formData = new FormData();
       Object.entries(updates).forEach(([key, value]) => {
         if (key === 'imageFile' && value instanceof File) {
@@ -259,7 +329,13 @@ export const updateOffer = async (
     return response.data;
   } catch (error) {
     console.error(`Error updating offer ${id}:`, error);
-    toast.error('Failed to update offer');
+    
+    if (axios.isAxiosError(error) && error.response) {
+      toast.error(`Failed to update offer: ${error.response.data.message || error.message}`);
+    } else {
+      toast.error('Failed to update offer');
+    }
+    
     return undefined;
   }
 };
