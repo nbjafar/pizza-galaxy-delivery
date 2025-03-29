@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -7,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { getMenuItemById, addMenuItem, updateMenuItem, getMenuCategories } from '@/services/database';
+import { getMenuItemById, addMenuItem, updateMenuItem, getMenuCategories } from '@/services/api';
 import { toast } from 'sonner';
 import { UploadCloud } from 'lucide-react';
 
@@ -16,7 +15,8 @@ const MenuItemForm = () => {
   const navigate = useNavigate();
   const isEditMode = !!id;
   
-  const existingCategories = getMenuCategories();
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -42,33 +42,55 @@ const MenuItemForm = () => {
   
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
+  // Load categories
+  useEffect(() => {
+    const loadCategories = async () => {
+      const data = await getMenuCategories();
+      setCategories(data);
+    };
+    
+    loadCategories();
+  }, []);
+  
   // Initialize form with existing data if in edit mode
   useEffect(() => {
     if (isEditMode) {
-      const menuItem = getMenuItemById(Number(id));
-      
-      if (menuItem) {
-        setFormData({
-          name: menuItem.name,
-          description: menuItem.description,
-          price: menuItem.price,
-          category: menuItem.category,
-          image: menuItem.image || '',
-          imageFile: null,
-          popular: menuItem.popular || false,
-          discount: menuItem.discount || 0,
-          newCategory: '',
-          availableSizes: menuItem.availableSizes || [],
-          availableToppings: menuItem.availableToppings || []
-        });
-        
-        if (menuItem.image) {
-          setImagePreview(menuItem.image);
+      const fetchMenuItem = async () => {
+        setLoading(true);
+        try {
+          const menuItem = await getMenuItemById(Number(id));
+          
+          if (menuItem) {
+            setFormData({
+              name: menuItem.name,
+              description: menuItem.description,
+              price: menuItem.price,
+              category: menuItem.category,
+              image: menuItem.image || '',
+              imageFile: null,
+              popular: menuItem.popular || false,
+              discount: menuItem.discount || 0,
+              newCategory: '',
+              availableSizes: menuItem.availableSizes || [],
+              availableToppings: menuItem.availableToppings || []
+            });
+            
+            if (menuItem.image) {
+              setImagePreview(menuItem.image);
+            }
+          } else {
+            toast.error('Menu item not found');
+            navigate('/admin/menu-items');
+          }
+        } catch (error) {
+          console.error('Error loading menu item:', error);
+          toast.error('Failed to load menu item');
+        } finally {
+          setLoading(false);
         }
-      } else {
-        toast.error('Menu item not found');
-        navigate('/admin/menu-items');
-      }
+      };
+      
+      fetchMenuItem();
     }
   }, [id, isEditMode, navigate]);
   
@@ -116,6 +138,8 @@ const MenuItemForm = () => {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      console.log('File selected:', file.name, file.type, file.size);
       
       // Update form data with the selected file
       setFormData({
@@ -197,61 +221,61 @@ const MenuItemForm = () => {
       return;
     }
     
-    // Determine final category (use new category if provided)
-    const finalCategory = formData.newCategory || formData.category;
+    setLoading(true);
     
-    // Create FormData for API submission if there's an image file
-    if (formData.imageFile) {
+    try {
+      // Determine final category (use new category if provided)
+      const finalCategory = formData.newCategory || formData.category;
+      
+      // Create FormData for API submission
       const itemFormData = new FormData();
       itemFormData.append('name', formData.name);
       itemFormData.append('description', formData.description);
       itemFormData.append('price', formData.price.toString());
       itemFormData.append('category', finalCategory);
       itemFormData.append('popular', formData.popular.toString());
+      
       if (formData.discount > 0) {
         itemFormData.append('discount', formData.discount.toString());
       }
+      
       if (formData.availableSizes.length > 0) {
         itemFormData.append('availableSizes', JSON.stringify(formData.availableSizes));
       }
+      
       if (formData.availableToppings.length > 0) {
         itemFormData.append('availableToppings', JSON.stringify(formData.availableToppings));
       }
-      itemFormData.append('image', formData.imageFile);
       
-      try {
-        if (isEditMode) {
-          await updateMenuItem(Number(id), itemFormData);
-        } else {
-          await addMenuItem(itemFormData);
-        }
-        navigate('/admin/menu-items');
-      } catch (error) {
-        console.error('Error submitting form with image:', error);
-        toast.error('Failed to save menu item');
+      // Add image file if one was selected
+      if (formData.imageFile) {
+        console.log('Appending image file to FormData:', formData.imageFile.name);
+        itemFormData.append('image', formData.imageFile);
+      } else if (formData.image) {
+        // Use the existing image URL if no new file was selected
+        console.log('Using existing image URL:', formData.image);
+        itemFormData.append('image', formData.image);
       }
-    } else {
-      // Use original JSON based submission for URL-based images
-      const itemData = {
-        name: formData.name,
-        description: formData.description,
-        price: formData.price,
-        category: finalCategory,
-        image: formData.image,
-        popular: formData.popular,
-        discount: formData.discount || undefined,
-        availableSizes: formData.availableSizes.length > 0 ? formData.availableSizes : undefined,
-        availableToppings: formData.availableToppings.length > 0 ? formData.availableToppings : undefined
-      };
+      
+      // Log the FormData contents for debugging
+      console.log('Submitting FormData:');
+      for (const pair of (itemFormData as any).entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+      }
       
       if (isEditMode) {
-        updateMenuItem(Number(id), itemData);
+        await updateMenuItem(Number(id), itemFormData);
       } else {
-        addMenuItem(itemData);
+        await addMenuItem(itemFormData);
       }
       
-      // Redirect to menu items list
+      toast.success(`Menu item ${isEditMode ? 'updated' : 'added'} successfully`);
       navigate('/admin/menu-items');
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast.error(`Failed to ${isEditMode ? 'update' : 'add'} menu item`);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -401,7 +425,7 @@ const MenuItemForm = () => {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1"
                   >
                     <option value="">Select a category</option>
-                    {existingCategories.map((category) => (
+                    {categories.map((category) => (
                       <option key={category} value={category}>
                         {category}
                       </option>

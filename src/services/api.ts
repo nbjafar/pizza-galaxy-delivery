@@ -10,13 +10,20 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Important for CORS with credentials
+  withCredentials: false, // Changed to false to prevent CORS preflight issues
 });
 
 // Add request interceptor for debugging
 api.interceptors.request.use(
   config => {
     console.log('API Request:', config.method?.toUpperCase(), config.url);
+    // Log form data contents if present
+    if (config.data instanceof FormData) {
+      console.log('FormData contents:');
+      for (const pair of (config.data as any).entries()) {
+        console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+      }
+    }
     return config;
   },
   error => {
@@ -99,24 +106,13 @@ export const addMenuItem = async (
   item: Omit<MenuItem, 'id'> | FormData
 ): Promise<MenuItem> => {
   try {
-    let response;
+    let formData: FormData;
     
     if (item instanceof FormData) {
-      // Log FormData contents for debugging
-      console.log('FormData contents:');
-      for (const pair of (item as any).entries()) {
-        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
-      }
-      
-      // File upload with FormData
-      response = await api.post('/menu-items', item, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      formData = item;
     } else {
       // Handle JSON objects by creating FormData
-      const formData = new FormData();
+      formData = new FormData();
       Object.entries(item).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
           formData.append('image', value);
@@ -126,19 +122,19 @@ export const addMenuItem = async (
           formData.append(key, String(value));
         }
       });
-
-      // Log FormData contents for debugging
-      console.log('Converted FormData contents:');
-      for (const pair of (formData as any).entries()) {
-        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
-      }
-
-      response = await api.post('/menu-items', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
     }
+
+    // Log FormData contents for debugging
+    console.log('FormData contents for upload:');
+    for (const pair of (formData as any).entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+    }
+
+    const response = await api.post('/menu-items', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     
     toast.success('Menu item added successfully');
     return response.data;
@@ -160,23 +156,13 @@ export const updateMenuItem = async (
   updates: Partial<MenuItem> | FormData
 ): Promise<MenuItem | undefined> => {
   try {
-    let response;
+    let formData: FormData;
     
     if (updates instanceof FormData) {
-      // Log FormData contents for debugging
-      console.log('Update FormData contents:');
-      for (const pair of (updates as any).entries()) {
-        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
-      }
-      
-      response = await api.put(`/menu-items/${id}`, updates, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      formData = updates;
     } else {
       // Convert to FormData
-      const formData = new FormData();
+      formData = new FormData();
       Object.entries(updates).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
           formData.append('image', value);
@@ -186,19 +172,19 @@ export const updateMenuItem = async (
           formData.append(key, String(value));
         }
       });
-
-      // Log converted FormData contents for debugging
-      console.log('Converted Update FormData contents:');
-      for (const pair of (formData as any).entries()) {
-        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
-      }
-
-      response = await api.put(`/menu-items/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
     }
+
+    // Log FormData contents for debugging
+    console.log('Update FormData contents:');
+    for (const pair of (formData as any).entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+    }
+
+    const response = await api.put(`/menu-items/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     
     toast.success('Menu item updated successfully');
     return response.data;
@@ -374,6 +360,7 @@ export const getMenuCategories = async (): Promise<string[]> => {
 export const getUploadDirectoryInfo = async (): Promise<{ path: string, url: string }> => {
   try {
     const response = await api.get('/upload-path');
+    console.log('Upload directory info:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching upload directory info:', error);
@@ -385,6 +372,7 @@ export const getUploadDirectoryInfo = async (): Promise<{ path: string, url: str
 export const getFeedback = async (): Promise<Feedback[]> => {
   try {
     const response = await api.get('/feedback');
+    console.log('Received feedback data:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching feedback:', error);
@@ -396,6 +384,7 @@ export const getFeedback = async (): Promise<Feedback[]> => {
 export const getPublishedFeedback = async (): Promise<Feedback[]> => {
   try {
     const feedback = await getFeedback();
+    console.log('Filtering published feedback from:', feedback);
     return feedback.filter(f => f.isPublished);
   } catch (error) {
     console.error('Error fetching published feedback:', error);
@@ -406,7 +395,9 @@ export const getPublishedFeedback = async (): Promise<Feedback[]> => {
 
 export const addFeedback = async (feedback: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Promise<Feedback> => {
   try {
+    console.log('Submitting feedback:', feedback);
     const response = await api.post('/feedback', feedback);
+    console.log('Feedback submission response:', response.data);
     toast.success('Feedback submitted successfully! Thank you for your comments.');
     return response.data;
   } catch (error) {

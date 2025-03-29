@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 
 // Configure CORS properly for all routes
 const corsOptions = {
-  origin: true, // Allow requests from any origin
+  origin: '*', // Allow requests from any origin for debugging
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -70,13 +70,8 @@ const upload = multer({
   }
 });
 
-// Specifically handle OPTIONS requests for /api/menu-items/:id
-app.options('/api/menu-items/:id', cors(corsOptions));
-app.options('/api/offers/:id', cors(corsOptions));
-
-// Specifically handle OPTIONS requests for file uploads
-app.options('/api/menu-items', cors(corsOptions));
-app.options('/api/offers', cors(corsOptions));
+// Explicitly enable pre-flight for all routes
+app.options('*', cors(corsOptions));
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -767,41 +762,69 @@ app.patch('/api/orders/:id/status', async (req, res) => {
   }
 });
 
-// Feedback
+// Submit feedback - Fix to ensure data is properly stored and retrieved
+app.post('/api/feedback', async (req, res) => {
+  try {
+    console.log('Received feedback submission:', req.body);
+    const { name, email, rating, message } = req.body;
+    
+    const [result] = await pool.query(
+      'INSERT INTO feedback (name, email, rating, message, is_published) VALUES (?, ?, ?, ?, ?)',
+      [name, email, rating, message, false]
+    );
+    
+    console.log('Feedback inserted with ID:', result.insertId);
+    
+    // Get the created feedback to return it properly
+    const [feedbacks] = await pool.query(
+      'SELECT * FROM feedback WHERE id = ?',
+      [result.insertId]
+    );
+    
+    if (feedbacks.length === 0) {
+      throw new Error('Failed to retrieve inserted feedback');
+    }
+    
+    const feedback = feedbacks[0];
+    
+    res.status(201).json({
+      id: feedback.id,
+      name: feedback.name,
+      email: feedback.email,
+      rating: feedback.rating,
+      message: feedback.message,
+      isPublished: feedback.is_published === 1,
+      createdAt: feedback.created_at
+    });
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    res.status(500).json({ message: 'Failed to submit feedback', error: error.message });
+  }
+});
+
+// Fix feedback retrieval
 app.get('/api/feedback', async (req, res) => {
   try {
     const [feedback] = await pool.query(
       'SELECT * FROM feedback ORDER BY created_at DESC'
     );
-    res.json(feedback);
+    
+    // Map database fields to camelCase for frontend consistency
+    const mappedFeedback = feedback.map(item => ({
+      id: item.id,
+      name: item.name,
+      email: item.email,
+      rating: item.rating,
+      message: item.message,
+      isPublished: item.is_published === 1,
+      createdAt: item.created_at
+    }));
+    
+    console.log(`Returning ${mappedFeedback.length} feedback items`);
+    res.json(mappedFeedback);
   } catch (error) {
     console.error('Error fetching feedback:', error);
     res.status(500).json({ message: 'Failed to fetch feedback' });
-  }
-});
-
-// Submit feedback
-app.post('/api/feedback', async (req, res) => {
-  try {
-    const { name, email, rating, message } = req.body;
-    
-    const [result] = await pool.query(
-      'INSERT INTO feedback (name, email, rating, message) VALUES (?, ?, ?, ?)',
-      [name, email, rating, message]
-    );
-    
-    res.status(201).json({
-      id: result.insertId,
-      name,
-      email,
-      rating,
-      message,
-      isPublished: false,
-      createdAt: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error submitting feedback:', error);
-    res.status(500).json({ message: 'Failed to submit feedback' });
   }
 });
 
@@ -850,15 +873,21 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
-// Serve uploaded files
-console.log(`Serving uploads from: ${UPLOAD_DIRECTORY}`);
-app.use('/uploads', express.static(UPLOAD_DIRECTORY));
+// Serve uploaded files - Fix to ensure correct path and permissions
+app.use('/uploads', express.static(UPLOAD_DIRECTORY, {
+  setHeaders: (res, path) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+  }
+}));
 
-// API route to get the upload directory path
+// API route to get the upload directory path - Fix to return consistent paths
 app.get('/api/upload-path', (req, res) => {
+  const uploadUrl = process.env.UPLOAD_URL || '/uploads';
+  console.log('Returning upload path info:', { path: UPLOAD_DIRECTORY, url: uploadUrl });
   res.json({ 
     path: UPLOAD_DIRECTORY,
-    url: '/uploads'
+    url: uploadUrl
   });
 });
 
@@ -875,6 +904,7 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Upload directory: ${UPLOAD_DIRECTORY}`);
+  console.log(`Upload URL path: ${process.env.UPLOAD_URL || '/uploads'}`);
   
   // List the contents of the upload directory
   if (fs.existsSync(UPLOAD_DIRECTORY)) {
