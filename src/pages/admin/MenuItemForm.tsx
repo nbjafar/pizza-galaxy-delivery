@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -8,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getMenuItemById, addMenuItem, updateMenuItem, getMenuCategories } from '@/services/database';
 import { toast } from 'sonner';
+import { UploadCloud } from 'lucide-react';
 
 const MenuItemForm = () => {
   const { id } = useParams();
@@ -23,6 +25,7 @@ const MenuItemForm = () => {
     price: 0,
     category: '',
     image: '',
+    imageFile: null as File | null,
     popular: false,
     discount: 0,
     newCategory: '',
@@ -37,6 +40,8 @@ const MenuItemForm = () => {
     category: ''
   });
   
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
   // Initialize form with existing data if in edit mode
   useEffect(() => {
     if (isEditMode) {
@@ -49,12 +54,17 @@ const MenuItemForm = () => {
           price: menuItem.price,
           category: menuItem.category,
           image: menuItem.image || '',
+          imageFile: null,
           popular: menuItem.popular || false,
           discount: menuItem.discount || 0,
           newCategory: '',
           availableSizes: menuItem.availableSizes || [],
           availableToppings: menuItem.availableToppings || []
         });
+        
+        if (menuItem.image) {
+          setImagePreview(menuItem.image);
+        }
       } else {
         toast.error('Menu item not found');
         navigate('/admin/menu-items');
@@ -101,6 +111,23 @@ const MenuItemForm = () => {
       ...formData,
       popular: checked
     });
+  };
+  
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Update form data with the selected file
+      setFormData({
+        ...formData,
+        imageFile: file,
+        image: '' // Clear URL field when a file is selected
+      });
+      
+      // Create a preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
   };
   
   const toggleSize = (size: string) => {
@@ -163,7 +190,7 @@ const MenuItemForm = () => {
     return isValid;
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -173,26 +200,59 @@ const MenuItemForm = () => {
     // Determine final category (use new category if provided)
     const finalCategory = formData.newCategory || formData.category;
     
-    const itemData = {
-      name: formData.name,
-      description: formData.description,
-      price: formData.price,
-      category: finalCategory,
-      image: formData.image,
-      popular: formData.popular,
-      discount: formData.discount || undefined,
-      availableSizes: formData.availableSizes.length > 0 ? formData.availableSizes : undefined,
-      availableToppings: formData.availableToppings.length > 0 ? formData.availableToppings : undefined
-    };
-    
-    if (isEditMode) {
-      updateMenuItem(Number(id), itemData);
+    // Create FormData for API submission if there's an image file
+    if (formData.imageFile) {
+      const itemFormData = new FormData();
+      itemFormData.append('name', formData.name);
+      itemFormData.append('description', formData.description);
+      itemFormData.append('price', formData.price.toString());
+      itemFormData.append('category', finalCategory);
+      itemFormData.append('popular', formData.popular.toString());
+      if (formData.discount > 0) {
+        itemFormData.append('discount', formData.discount.toString());
+      }
+      if (formData.availableSizes.length > 0) {
+        itemFormData.append('availableSizes', JSON.stringify(formData.availableSizes));
+      }
+      if (formData.availableToppings.length > 0) {
+        itemFormData.append('availableToppings', JSON.stringify(formData.availableToppings));
+      }
+      itemFormData.append('image', formData.imageFile);
+      
+      try {
+        if (isEditMode) {
+          await updateMenuItem(Number(id), itemFormData);
+        } else {
+          await addMenuItem(itemFormData);
+        }
+        navigate('/admin/menu-items');
+      } catch (error) {
+        console.error('Error submitting form with image:', error);
+        toast.error('Failed to save menu item');
+      }
     } else {
-      addMenuItem(itemData);
+      // Use original JSON based submission for URL-based images
+      const itemData = {
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        category: finalCategory,
+        image: formData.image,
+        popular: formData.popular,
+        discount: formData.discount || undefined,
+        availableSizes: formData.availableSizes.length > 0 ? formData.availableSizes : undefined,
+        availableToppings: formData.availableToppings.length > 0 ? formData.availableToppings : undefined
+      };
+      
+      if (isEditMode) {
+        updateMenuItem(Number(id), itemData);
+      } else {
+        addMenuItem(itemData);
+      }
+      
+      // Redirect to menu items list
+      navigate('/admin/menu-items');
     }
-    
-    // Redirect to menu items list
-    navigate('/admin/menu-items');
   };
   
   // Default sizes and toppings
@@ -280,17 +340,53 @@ const MenuItemForm = () => {
                   </div>
                 </div>
                 
-                <div>
-                  <Label htmlFor="image">Image URL</Label>
-                  <Input
-                    id="image"
-                    name="image"
-                    value={formData.image}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <p className="text-gray-500 text-sm mt-1">
-                    Enter the URL of the pizza image. Recommended size: 500x500 pixels.
+                <div className="space-y-2">
+                  <Label>Item Image</Label>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="image" className="text-sm text-gray-600 mb-1 block">Image URL</Label>
+                      <Input
+                        id="image"
+                        name="image"
+                        value={formData.image}
+                        onChange={handleInputChange}
+                        placeholder="https://example.com/image.jpg"
+                        disabled={!!formData.imageFile}
+                      />
+                    </div>
+                    
+                    <div className="border border-dashed border-gray-300 rounded-md p-4">
+                      <Label htmlFor="imageFile" className="text-sm text-gray-600 mb-1 block">Or Upload Image</Label>
+                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div className="space-y-1 text-center">
+                          <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex text-sm text-gray-600">
+                            <label htmlFor="imageFile" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                              <span>Upload a file</span>
+                              <Input
+                                id="imageFile"
+                                name="imageFile"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                className="sr-only"
+                              />
+                            </label>
+                            <p className="pl-1">or drag and drop</p>
+                          </div>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                          {formData.imageFile && (
+                            <p className="text-xs text-green-500">
+                              File selected: {formData.imageFile.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Images are stored in the server/uploads directory. Recommended size: 500x500 pixels.
                   </p>
                 </div>
                 
@@ -367,16 +463,17 @@ const MenuItemForm = () => {
                   </div>
                 </div>
                 
-                {formData.image && (
+                {(imagePreview || formData.image) && (
                   <div className="mt-4">
                     <Label>Image Preview</Label>
                     <div className="mt-2 border rounded-md overflow-hidden h-48 bg-gray-100">
                       <img
-                        src={formData.image}
+                        src={imagePreview || formData.image}
                         alt="Preview"
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.src = '/placeholder.svg';
+                          toast.error("Failed to load image preview");
                         }}
                       />
                     </div>

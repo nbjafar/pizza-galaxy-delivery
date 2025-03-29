@@ -1,4 +1,3 @@
-
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
@@ -19,13 +18,17 @@ app.use(cors());
 app.use(express.json());
 
 // Configure multer for file uploads
+const UPLOAD_DIRECTORY = path.join(__dirname, 'uploads');
+
+// Ensure uploads directory exists
+if (!fs.existsSync(UPLOAD_DIRECTORY)) {
+  fs.mkdirSync(UPLOAD_DIRECTORY, { recursive: true });
+  console.log(`Created uploads directory at: ${UPLOAD_DIRECTORY}`);
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
+    cb(null, UPLOAD_DIRECTORY);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -34,7 +37,19 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Accept images only
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -206,7 +221,9 @@ app.post('/api/menu-items', upload.single('image'), async (req, res) => {
     
     let imageFilename = null;
     if (req.file) {
+      // Store the relative path that will be used in frontend
       imageFilename = `/uploads/${req.file.filename}`;
+      console.log(`Uploaded image: ${req.file.filename} to ${UPLOAD_DIRECTORY}`);
     }
     
     const { name, description, price, category, popular, availableSizes, availableToppings } = req.body;
@@ -322,10 +339,17 @@ app.put('/api/menu-items/:id', upload.single('image'), async (req, res) => {
     let imageFilename = menuItems[0].image;
     if (req.file) {
       // Delete old image if exists and not a placeholder
-      if (imageFilename && !imageFilename.includes('placeholder') && fs.existsSync(path.join(__dirname, imageFilename))) {
-        fs.unlinkSync(path.join(__dirname, imageFilename));
+      if (imageFilename && !imageFilename.includes('placeholder')) {
+        const oldImagePath = path.join(__dirname, imageFilename);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+          console.log(`Deleted old image: ${oldImagePath}`);
+        }
       }
+      
+      // Store the relative path that will be used in frontend
       imageFilename = `/uploads/${req.file.filename}`;
+      console.log(`Updated with new image: ${req.file.filename} to ${UPLOAD_DIRECTORY}`);
     }
     
     // Get or create category
@@ -447,8 +471,12 @@ app.delete('/api/menu-items/:id', async (req, res) => {
     
     // Delete image file if exists and not a placeholder
     const imageFilename = menuItems[0].image;
-    if (imageFilename && !imageFilename.includes('placeholder') && fs.existsSync(path.join(__dirname, imageFilename))) {
-      fs.unlinkSync(path.join(__dirname, imageFilename));
+    if (imageFilename && !imageFilename.includes('placeholder')) {
+      const imagePath = path.join(__dirname, imageFilename);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`Deleted image file: ${imagePath}`);
+      }
     }
     
     // Delete related records
@@ -468,6 +496,67 @@ app.delete('/api/menu-items/:id', async (req, res) => {
     res.status(500).json({ message: 'Failed to delete menu item' });
   } finally {
     connection.release();
+  }
+});
+
+// Offers/Promotions with image upload
+app.post('/api/offers', upload.single('image'), async (req, res) => {
+  try {
+    let imageFilename = null;
+    if (req.file) {
+      // Store the relative path that will be used in frontend
+      imageFilename = `/uploads/${req.file.filename}`;
+      console.log(`Uploaded offer image: ${req.file.filename} to ${UPLOAD_DIRECTORY}`);
+    }
+    
+    const { title, description, discount, menuItemIds, startDate, endDate, isActive } = req.body;
+    
+    // Process the database insert for offer
+    // ... your existing offer creation logic
+    
+    res.status(201).json({
+      id: 1, // Replace with actual ID
+      title,
+      description,
+      imageUrl: imageFilename,
+      discount: parseFloat(discount) || 0,
+      menuItemIds: menuItemIds ? JSON.parse(menuItemIds) : [],
+      startDate,
+      endDate,
+      isActive: isActive === 'true'
+    });
+  } catch (error) {
+    console.error('Error creating offer:', error);
+    res.status(500).json({ message: 'Failed to create offer' });
+  }
+});
+
+app.put('/api/offers/:id', upload.single('image'), async (req, res) => {
+  try {
+    const offerId = req.params.id;
+    
+    // Check if offer exists and get current image
+    // Similar to the menu item update logic
+    
+    let imageFilename = null; // This should be set to current image from DB
+    if (req.file) {
+      // Delete old image logic here
+      
+      // Store the relative path that will be used in frontend
+      imageFilename = `/uploads/${req.file.filename}`;
+      console.log(`Updated offer with new image: ${req.file.filename} to ${UPLOAD_DIRECTORY}`);
+    }
+    
+    // Update offer in database
+    // ... your existing offer update logic
+    
+    res.json({
+      id: parseInt(offerId, 10),
+      // Other offer data
+    });
+  } catch (error) {
+    console.error('Error updating offer:', error);
+    res.status(500).json({ message: 'Failed to update offer' });
   }
 });
 
@@ -736,6 +825,15 @@ app.post('/api/contact', async (req, res) => {
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+console.log(`Serving uploads from: ${path.join(__dirname, 'uploads')}`);
+
+// API route to get the upload directory path
+app.get('/api/upload-path', (req, res) => {
+  res.json({ 
+    path: UPLOAD_DIRECTORY,
+    url: '/uploads'
+  });
+});
 
 // Serve static files from the React app in production
 if (process.env.NODE_ENV === 'production') {
@@ -749,4 +847,5 @@ if (process.env.NODE_ENV === 'production') {
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Upload directory: ${UPLOAD_DIRECTORY}`);
 });

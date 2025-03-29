@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { MenuItem, OfferItem, Feedback, Order } from '@/models/types';
 import { toast } from 'sonner';
@@ -71,25 +70,38 @@ export const getPopularMenuItems = async (): Promise<MenuItem[]> => {
   }
 };
 
-export const addMenuItem = async (item: Omit<MenuItem, 'id'>): Promise<MenuItem> => {
+export const addMenuItem = async (
+  item: Omit<MenuItem, 'id'> | FormData
+): Promise<MenuItem> => {
   try {
-    // Handle file upload with FormData
-    const formData = new FormData();
-    Object.entries(item).forEach(([key, value]) => {
-      if (key === 'image' && value instanceof File) {
-        formData.append('image', value);
-      } else if (Array.isArray(value)) {
-        formData.append(key, JSON.stringify(value));
-      } else if (value !== undefined) {
-        formData.append(key, String(value));
-      }
-    });
+    let response;
+    
+    if (item instanceof FormData) {
+      // File upload with FormData
+      response = await api.post('/menu-items', item, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      // Handle file upload with FormData for regular JSON objects
+      const formData = new FormData();
+      Object.entries(item).forEach(([key, value]) => {
+        if (key === 'image' && value instanceof File) {
+          formData.append('image', value);
+        } else if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else if (value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
 
-    const response = await api.post('/menu-items', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+      response = await api.post('/menu-items', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
     
     toast.success('Menu item added successfully');
     return response.data;
@@ -100,25 +112,39 @@ export const addMenuItem = async (item: Omit<MenuItem, 'id'>): Promise<MenuItem>
   }
 };
 
-export const updateMenuItem = async (id: number, updates: Partial<MenuItem>): Promise<MenuItem | undefined> => {
+export const updateMenuItem = async (
+  id: number, 
+  updates: Partial<MenuItem> | FormData
+): Promise<MenuItem | undefined> => {
   try {
-    // Handle file upload with FormData
-    const formData = new FormData();
-    Object.entries(updates).forEach(([key, value]) => {
-      if (key === 'image' && value instanceof File) {
-        formData.append('image', value);
-      } else if (Array.isArray(value)) {
-        formData.append(key, JSON.stringify(value));
-      } else if (value !== undefined) {
-        formData.append(key, String(value));
-      }
-    });
+    let response;
+    
+    if (updates instanceof FormData) {
+      // File upload with FormData
+      response = await api.put(`/menu-items/${id}`, updates, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      // Handle file upload with FormData for regular JSON objects
+      const formData = new FormData();
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key === 'image' && value instanceof File) {
+          formData.append('image', value);
+        } else if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else if (value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
 
-    const response = await api.put(`/menu-items/${id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+      response = await api.put(`/menu-items/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
     
     toast.success('Menu item updated successfully');
     return response.data;
@@ -141,7 +167,7 @@ export const deleteMenuItem = async (id: number): Promise<boolean> => {
   }
 };
 
-// Offers API
+// Offers API with file upload support
 export const getOffers = async (): Promise<OfferItem[]> => {
   try {
     const response = await api.get('/offers');
@@ -150,6 +176,91 @@ export const getOffers = async (): Promise<OfferItem[]> => {
     console.error('Error fetching offers:', error);
     toast.error('Failed to load offers');
     return [];
+  }
+};
+
+export const addOffer = async (
+  offer: Omit<OfferItem, 'id'> | FormData
+): Promise<OfferItem> => {
+  try {
+    let response;
+    
+    if (offer instanceof FormData) {
+      // File upload with FormData
+      response = await api.post('/offers', offer, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      // Handle file upload with FormData for regular JSON objects
+      const formData = new FormData();
+      Object.entries(offer).forEach(([key, value]) => {
+        if (key === 'imageFile' && value instanceof File) {
+          formData.append('image', value);
+        } else if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else if (value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
+
+      response = await api.post('/offers', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+    
+    toast.success('Offer added successfully');
+    return response.data;
+  } catch (error) {
+    console.error('Error adding offer:', error);
+    toast.error('Failed to add offer');
+    throw error;
+  }
+};
+
+export const updateOffer = async (
+  id: number, 
+  updates: Partial<OfferItem> | FormData
+): Promise<OfferItem | undefined> => {
+  try {
+    let response;
+    
+    if (updates instanceof FormData) {
+      // File upload with FormData
+      response = await api.put(`/offers/${id}`, updates, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      // Handle file upload with FormData for regular JSON objects
+      const formData = new FormData();
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key === 'imageFile' && value instanceof File) {
+          formData.append('image', value);
+        } else if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else if (value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
+
+      response = await api.put(`/offers/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+    
+    toast.success('Offer updated successfully');
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating offer ${id}:`, error);
+    toast.error('Failed to update offer');
+    return undefined;
   }
 };
 
@@ -180,6 +291,17 @@ export const getMenuCategories = async (): Promise<string[]> => {
     console.error('Error fetching menu categories:', error);
     toast.error('Failed to load categories');
     return [];
+  }
+};
+
+// Get upload directory information
+export const getUploadDirectoryInfo = async (): Promise<{ path: string, url: string }> => {
+  try {
+    const response = await api.get('/upload-path');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching upload directory info:', error);
+    return { path: 'server/uploads', url: '/uploads' };
   }
 };
 

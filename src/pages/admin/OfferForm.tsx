@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -9,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { getOfferById, addOffer, updateOffer, getMenuItems } from '@/services/database';
 import { toast } from 'sonner';
+import { UploadCloud } from 'lucide-react';
 
 const OfferForm = () => {
   const { id } = useParams();
@@ -22,6 +24,7 @@ const OfferForm = () => {
     title: '',
     description: '',
     imageUrl: '',
+    imageFile: null as File | null,
     discount: 0,
     menuItemIds: [] as number[],
     startDate: '',
@@ -36,6 +39,8 @@ const OfferForm = () => {
     endDate: ''
   });
   
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
   // Initialize form with existing data if in edit mode
   useEffect(() => {
     if (isEditMode) {
@@ -46,12 +51,17 @@ const OfferForm = () => {
           title: offer.title,
           description: offer.description,
           imageUrl: offer.imageUrl || '',
+          imageFile: null,
           discount: offer.discount,
           menuItemIds: offer.menuItemIds || [],
           startDate: offer.startDate,
           endDate: offer.endDate,
           isActive: offer.isActive
         });
+        
+        if (offer.imageUrl) {
+          setImagePreview(offer.imageUrl);
+        }
       } else {
         toast.error('Offer not found');
         navigate('/admin/offers');
@@ -94,6 +104,23 @@ const OfferForm = () => {
       ...formData,
       [name]: parseFloat(value) || 0
     });
+  };
+  
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Update form data with the selected file
+      setFormData({
+        ...formData,
+        imageFile: file,
+        imageUrl: '' // Clear URL field when a file is selected
+      });
+      
+      // Create a preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
   };
   
   const handleSwitchChange = (checked: boolean) => {
@@ -155,32 +182,60 @@ const OfferForm = () => {
     return isValid;
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
     
-    const offerData = {
-      title: formData.title,
-      description: formData.description,
-      imageUrl: formData.imageUrl || undefined,
-      discount: formData.discount,
-      menuItemIds: formData.menuItemIds.length > 0 ? formData.menuItemIds : undefined,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      isActive: formData.isActive
-    };
-    
-    if (isEditMode) {
-      updateOffer(Number(id), offerData);
+    // Create FormData for API submission if there's an image file
+    if (formData.imageFile) {
+      const offerFormData = new FormData();
+      offerFormData.append('title', formData.title);
+      offerFormData.append('description', formData.description);
+      offerFormData.append('discount', formData.discount.toString());
+      if (formData.menuItemIds.length > 0) {
+        offerFormData.append('menuItemIds', JSON.stringify(formData.menuItemIds));
+      }
+      offerFormData.append('startDate', formData.startDate);
+      offerFormData.append('endDate', formData.endDate);
+      offerFormData.append('isActive', formData.isActive.toString());
+      offerFormData.append('image', formData.imageFile);
+      
+      try {
+        if (isEditMode) {
+          await updateOffer(Number(id), offerFormData);
+        } else {
+          await addOffer(offerFormData);
+        }
+        navigate('/admin/offers');
+      } catch (error) {
+        console.error('Error submitting form with image:', error);
+        toast.error('Failed to save offer');
+      }
     } else {
-      addOffer(offerData);
+      // Use original JSON based submission for URL-based images
+      const offerData = {
+        title: formData.title,
+        description: formData.description,
+        imageUrl: formData.imageUrl || undefined,
+        discount: formData.discount,
+        menuItemIds: formData.menuItemIds.length > 0 ? formData.menuItemIds : undefined,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        isActive: formData.isActive
+      };
+      
+      if (isEditMode) {
+        updateOffer(Number(id), offerData);
+      } else {
+        addOffer(offerData);
+      }
+      
+      // Redirect to offers list
+      navigate('/admin/offers');
     }
-    
-    // Redirect to offers list
-    navigate('/admin/offers');
   };
 
   // Group menu items by category
@@ -233,17 +288,53 @@ const OfferForm = () => {
                   {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
                 </div>
                 
-                <div>
-                  <Label htmlFor="imageUrl">Image URL</Label>
-                  <Input
-                    id="imageUrl"
-                    name="imageUrl"
-                    value={formData.imageUrl}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <p className="text-gray-500 text-sm mt-1">
-                    Enter the URL of the offer image. Recommended size: 800x400 pixels.
+                <div className="space-y-2">
+                  <Label>Offer Image</Label>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="imageUrl" className="text-sm text-gray-600 mb-1 block">Image URL</Label>
+                      <Input
+                        id="imageUrl"
+                        name="imageUrl"
+                        value={formData.imageUrl}
+                        onChange={handleInputChange}
+                        placeholder="https://example.com/image.jpg"
+                        disabled={!!formData.imageFile}
+                      />
+                    </div>
+                    
+                    <div className="border border-dashed border-gray-300 rounded-md p-4">
+                      <Label htmlFor="imageFile" className="text-sm text-gray-600 mb-1 block">Or Upload Image</Label>
+                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div className="space-y-1 text-center">
+                          <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="flex text-sm text-gray-600">
+                            <label htmlFor="imageFile" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                              <span>Upload a file</span>
+                              <Input
+                                id="imageFile"
+                                name="imageFile"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                className="sr-only"
+                              />
+                            </label>
+                            <p className="pl-1">or drag and drop</p>
+                          </div>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                          {formData.imageFile && (
+                            <p className="text-xs text-green-500">
+                              File selected: {formData.imageFile.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Images are stored in the server/uploads directory. Recommended size: 800x400 pixels.
                   </p>
                 </div>
                 
@@ -300,16 +391,17 @@ const OfferForm = () => {
                   <Label htmlFor="isActive">Active</Label>
                 </div>
                 
-                {formData.imageUrl && (
+                {(imagePreview || formData.imageUrl) && (
                   <div className="mt-4">
                     <Label>Image Preview</Label>
                     <div className="mt-2 border rounded-md overflow-hidden h-48 bg-gray-100">
                       <img
-                        src={formData.imageUrl}
+                        src={imagePreview || formData.imageUrl}
                         alt="Preview"
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.src = '/placeholder.svg';
+                          toast.error("Failed to load image preview");
                         }}
                       />
                     </div>

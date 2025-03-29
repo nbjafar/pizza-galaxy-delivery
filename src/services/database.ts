@@ -1,21 +1,21 @@
+// Mock database functions for local testing
+
 import { MenuItem, OfferItem, Feedback, Order } from '@/models/types';
+import { addMenuItem as apiAddMenuItem, updateMenuItem as apiUpdateMenuItem } from './api';
 import { toast } from 'sonner';
 
-// This is a mock database service for demo purposes
-// In a real application, this would connect to your MySQL database
-
-// Initial menu items
-const initialMenuItems: MenuItem[] = [
+// Menu Items
+let menuItems: MenuItem[] = [
   {
     id: 1,
     name: 'Margherita Pizza',
-    description: 'Classic pizza with tomato sauce, mozzarella, and fresh basil',
+    description: 'Classic pizza with fresh tomatoes, mozzarella cheese, and basil',
     price: 12.99,
     category: 'Classic Pizzas',
-    image: '/pizzas/margherita.jpg',
+    image: '/imgs/margherita.jpg',
     popular: true,
     availableSizes: ['Small', 'Medium', 'Large', 'Family'],
-    availableToppings: ['Extra Cheese', 'Mushrooms', 'Olives', 'Peppers']
+    availableToppings: ['Extra Cheese', 'Mushrooms', 'Olives']
   },
   {
     id: 2,
@@ -23,258 +23,309 @@ const initialMenuItems: MenuItem[] = [
     description: 'Traditional pizza topped with spicy pepperoni slices',
     price: 14.99,
     category: 'Classic Pizzas',
-    image: '/pizzas/pepperoni.jpg',
+    image: '/imgs/pepperoni.jpg',
     popular: true,
     availableSizes: ['Small', 'Medium', 'Large', 'Family'],
-    availableToppings: ['Extra Cheese', 'Mushrooms', 'Olives', 'Peppers']
+    availableToppings: ['Extra Cheese', 'Mushrooms', 'Onions', 'Bell Peppers']
   },
   {
     id: 3,
-    name: 'Vegetarian Pizza',
-    description: 'Fresh vegetables, including bell peppers, onions, mushrooms, and olives',
-    price: 13.99,
-    category: 'Vegetarian',
-    image: '/pizzas/vegetarian.jpg',
+    name: 'Vegetarian Supreme',
+    description: 'Loaded with fresh vegetables including bell peppers, onions, mushrooms, and olives',
+    price: 15.99,
+    category: 'Specialty Pizzas',
+    image: '/imgs/vegetarian.jpg',
     popular: false,
-    availableSizes: ['Small', 'Medium', 'Large', 'Family'],
-    availableToppings: ['Extra Cheese', 'Pineapple', 'Extra Vegetables', 'Jalapenos']
+    availableSizes: ['Medium', 'Large', 'Family'],
+    availableToppings: ['Extra Cheese', 'Jalapeños', 'Pineapple']
   },
   {
     id: 4,
-    name: 'BBQ Chicken Pizza',
-    description: 'Grilled chicken, BBQ sauce, red onions, and cilantro',
-    price: 15.99,
-    category: 'Special Pizzas',
-    image: '/pizzas/bbq-chicken.jpg',
+    name: 'Meat Lovers',
+    description: 'For the carnivores - pepperoni, sausage, bacon, and ham on a rich tomato base',
+    price: 16.99,
+    category: 'Specialty Pizzas',
+    image: '/imgs/meat-lovers.jpg',
     popular: true,
-    availableSizes: ['Small', 'Medium', 'Large', 'Family'],
-    availableToppings: ['Extra Cheese', 'Extra Chicken', 'Bacon', 'Peppers']
+    availableSizes: ['Medium', 'Large', 'Family'],
+    availableToppings: ['Extra Cheese', 'Mushrooms', 'Onions']
   },
   {
     id: 5,
-    name: 'Supreme Pizza',
-    description: 'Loaded with pepperoni, sausage, bell peppers, onions, and olives',
-    price: 16.99,
-    category: 'Special Pizzas',
-    image: '/pizzas/supreme.jpg',
-    popular: true,
-    availableSizes: ['Small', 'Medium', 'Large', 'Family'],
-    availableToppings: ['Extra Cheese', 'Extra Meat', 'Mushrooms', 'Jalapenos']
+    name: 'Hawaiian Pizza',
+    description: 'Sweet and savory combination of ham and pineapple',
+    price: 14.99,
+    category: 'Classic Pizzas',
+    image: '/imgs/hawaiian.jpg',
+    popular: false,
+    availableSizes: ['Small', 'Medium', 'Large'],
+    availableToppings: ['Extra Cheese', 'Bacon', 'Bell Peppers']
   },
   {
     id: 6,
-    name: 'Hawaiian Pizza',
-    description: 'Ham and pineapple with a tomato base',
-    price: 14.99,
-    category: 'Classic Pizzas',
-    image: '/pizzas/hawaiian.jpg',
-    popular: false,
-    availableSizes: ['Small', 'Medium', 'Large', 'Family'],
-    availableToppings: ['Extra Cheese', 'Extra Pineapple', 'Extra Ham', 'Bacon']
+    name: 'BBQ Chicken',
+    description: 'Grilled chicken, red onions, and cilantro on a tangy BBQ sauce base',
+    price: 16.99,
+    category: 'Specialty Pizzas',
+    image: '/imgs/bbq-chicken.jpg',
+    popular: true,
+    availableSizes: ['Medium', 'Large'],
+    availableToppings: ['Extra Cheese', 'Bacon', 'Jalapeños']
   },
   {
     id: 7,
-    name: 'Garlic Bread',
-    description: 'Freshly baked bread with garlic butter and herbs',
-    price: 4.99,
+    name: 'Buffalo Wings',
+    description: 'Spicy buffalo wings served with blue cheese dip',
+    price: 9.99,
     category: 'Sides',
-    image: '/sides/garlic-bread.jpg',
+    image: '/imgs/buffalo-wings.jpg',
     popular: true
   },
   {
     id: 8,
-    name: 'Caesar Salad',
-    description: 'Crisp romaine lettuce with Caesar dressing and croutons',
-    price: 6.99,
+    name: 'Garlic Bread',
+    description: 'Freshly baked bread with garlic butter and herbs',
+    price: 4.99,
     category: 'Sides',
-    image: '/sides/caesar-salad.jpg',
+    image: '/imgs/garlic-bread.jpg',
     popular: false
   },
   {
     id: 9,
-    name: 'Chocolate Brownie',
-    description: 'Rich chocolate brownie with vanilla ice cream',
-    price: 5.99,
-    category: 'Desserts',
-    image: '/desserts/chocolate-brownie.jpg',
-    popular: true
+    name: 'Caesar Salad',
+    description: 'Crisp romaine lettuce with Caesar dressing, croutons, and parmesan',
+    price: 7.99,
+    category: 'Salads',
+    image: '/imgs/caesar-salad.jpg',
+    popular: false
   },
   {
     id: 10,
-    name: 'Tiramisu',
-    description: 'Classic Italian dessert with coffee-soaked ladyfingers',
+    name: 'Chocolate Brownie',
+    description: 'Warm chocolate brownie served with vanilla ice cream',
     price: 6.99,
     category: 'Desserts',
-    image: '/desserts/tiramisu.jpg',
-    popular: false
+    image: '/imgs/chocolate-brownie.jpg',
+    popular: true
   }
 ];
 
-// Initial offers
-const initialOffers: OfferItem[] = [
-  {
-    id: 1,
-    title: 'Monday Madness',
-    description: 'Get 30% off on all classic pizzas every Monday!',
-    imageUrl: '/offers/monday-offer.jpg',
-    discount: 30,
-    menuItemIds: [1, 2, 6],
-    startDate: '2023-08-01',
-    endDate: '2023-12-31',
-    isActive: true
-  },
-  {
-    id: 2,
-    title: 'Family Feast',
-    description: 'Order any 2 family-sized pizzas and get a free garlic bread!',
-    imageUrl: '/offers/family-feast.jpg',
-    discount: 0,
-    menuItemIds: [1, 2, 3, 4, 5, 6],
-    startDate: '2023-08-01',
-    endDate: '2023-12-31',
-    isActive: true
-  },
-  {
-    id: 3,
-    title: 'Dessert Delight',
-    description: 'Get 50% off on all desserts when you spend over $30',
-    imageUrl: '/offers/dessert-offer.jpg',
-    discount: 50,
-    menuItemIds: [9, 10],
-    startDate: '2023-08-01',
-    endDate: '2023-12-31',
-    isActive: true
-  }
-];
-
-// Initial feedback
-const initialFeedback: Feedback[] = [
-  {
-    id: 1,
-    name: 'John Smith',
-    email: 'john@example.com',
-    rating: 5,
-    message: 'Best pizza in town! The Margherita is absolutely fantastic.',
-    createdAt: '2023-08-10',
-    isPublished: true
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    email: 'sarah@example.com',
-    rating: 4,
-    message: 'Really enjoyed the BBQ Chicken pizza. Delivery was quick too!',
-    createdAt: '2023-08-15',
-    isPublished: true
-  },
-  {
-    id: 3,
-    name: 'Michael Brown',
-    email: 'michael@example.com',
-    rating: 5,
-    message: 'Great customer service and the pizzas are consistently delicious.',
-    createdAt: '2023-08-20',
-    isPublished: true
-  }
-];
-
-// Initial orders
-const initialOrders: Order[] = [];
-
-// Helper function to load data from localStorage or use initial data
-const loadData = <T>(key: string, initialData: T): T => {
-  const stored = localStorage.getItem(key);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (error) {
-      console.error(`Error parsing ${key} data:`, error);
-      return initialData;
-    }
-  }
-  return initialData;
-};
-
-// Helper function to save data to localStorage
-const saveData = <T>(key: string, data: T): void => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
-
-// Menu Items CRUD
 export const getMenuItems = (): MenuItem[] => {
-  return loadData('menuItems', initialMenuItems);
+  return menuItems;
 };
 
 export const getMenuItemById = (id: number): MenuItem | undefined => {
-  const items = getMenuItems();
-  return items.find(item => item.id === id);
+  return menuItems.find(item => item.id === id);
 };
 
 export const getMenuItemsByCategory = (category: string): MenuItem[] => {
-  const items = getMenuItems();
-  return items.filter(item => item.category === category);
+  return menuItems.filter(item => item.category === category);
 };
 
 export const getPopularMenuItems = (): MenuItem[] => {
-  const items = getMenuItems();
-  return items.filter(item => item.popular);
+  return menuItems.filter(item => item.popular);
 };
 
-export const addMenuItem = (item: Omit<MenuItem, 'id'>): MenuItem => {
-  const items = getMenuItems();
-  const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
-  const newItem = { ...item, id: newId };
-  
-  const updatedItems = [...items, newItem];
-  saveData('menuItems', updatedItems);
-  toast.success('Menu item added successfully');
-  
-  return newItem;
+export const addMenuItem = async (
+  itemData: Omit<MenuItem, 'id'> | FormData
+): Promise<MenuItem> => {
+  try {
+    // Use the API to add the menu item (for when API is connected)
+    const newItem = await apiAddMenuItem(itemData);
+    
+    // Update local state (for testing without API)
+    const newId = menuItems.length > 0 ? Math.max(...menuItems.map(item => item.id)) + 1 : 1;
+    
+    let newMenuItem: MenuItem;
+    
+    if (itemData instanceof FormData) {
+      const name = itemData.get('name') as string;
+      const description = itemData.get('description') as string;
+      const price = parseFloat(itemData.get('price') as string);
+      const category = itemData.get('category') as string;
+      const popular = itemData.get('popular') === 'true';
+      
+      let availableSizes: string[] = [];
+      let availableToppings: string[] = [];
+      
+      const sizesString = itemData.get('availableSizes');
+      if (sizesString) {
+        availableSizes = JSON.parse(sizesString as string);
+      }
+      
+      const toppingsString = itemData.get('availableToppings');
+      if (toppingsString) {
+        availableToppings = JSON.parse(toppingsString as string);
+      }
+      
+      // Get image file name from the FormData - this would come from the server response
+      // In testing, we're just using a placeholder
+      const imageFile = itemData.get('image') as File;
+      const image = imageFile ? `/uploads/${Date.now()}-${imageFile.name}` : '';
+      
+      newMenuItem = {
+        id: newId,
+        name,
+        description,
+        price,
+        category,
+        image,
+        popular,
+        availableSizes,
+        availableToppings
+      };
+      
+    } else {
+      newMenuItem = {
+        id: newId,
+        name: itemData.name,
+        description: itemData.description,
+        price: itemData.price,
+        category: itemData.category,
+        image: itemData.image,
+        popular: itemData.popular,
+        availableSizes: itemData.availableSizes || [],
+        availableToppings: itemData.availableToppings || []
+      };
+    }
+    
+    menuItems.push(newMenuItem);
+    toast.success('Menu item added successfully');
+    
+    return newMenuItem;
+  } catch (error) {
+    console.error('Error adding menu item:', error);
+    toast.error('Failed to add menu item');
+    throw error;
+  }
 };
 
-export const updateMenuItem = (id: number, updates: Partial<MenuItem>): MenuItem | undefined => {
-  const items = getMenuItems();
-  const index = items.findIndex(item => item.id === id);
-  
-  if (index === -1) {
-    toast.error('Menu item not found');
+export const updateMenuItem = async (
+  id: number, 
+  updates: Partial<MenuItem> | FormData
+): Promise<MenuItem | undefined> => {
+  try {
+    // Use the API to update the menu item (for when API is connected)
+    await apiUpdateMenuItem(id, updates);
+    
+    // Update local state (for testing without API)
+    const index = menuItems.findIndex(item => item.id === id);
+    if (index === -1) return undefined;
+    
+    if (updates instanceof FormData) {
+      // Extract data from FormData
+      const name = updates.get('name') as string;
+      const description = updates.get('description') as string;
+      const price = parseFloat(updates.get('price') as string);
+      const category = updates.get('category') as string;
+      const popular = updates.get('popular') === 'true';
+      
+      let availableSizes: string[] = [];
+      let availableToppings: string[] = [];
+      
+      const sizesString = updates.get('availableSizes');
+      if (sizesString) {
+        availableSizes = JSON.parse(sizesString as string);
+      }
+      
+      const toppingsString = updates.get('availableToppings');
+      if (toppingsString) {
+        availableToppings = JSON.parse(toppingsString as string);
+      }
+      
+      // Get image file name from the FormData - this would come from the server response
+      // In testing, we're just using a placeholder or keeping the old image
+      const imageFile = updates.get('image') as File;
+      const currentItem = menuItems[index];
+      const image = imageFile ? `/uploads/${Date.now()}-${imageFile.name}` : currentItem.image;
+      
+      menuItems[index] = {
+        ...menuItems[index],
+        name,
+        description,
+        price,
+        category,
+        image,
+        popular,
+        availableSizes,
+        availableToppings
+      };
+    } else {
+      menuItems[index] = {
+        ...menuItems[index],
+        ...updates
+      };
+    }
+    
+    toast.success('Menu item updated successfully');
+    return menuItems[index];
+  } catch (error) {
+    console.error('Error updating menu item:', error);
+    toast.error('Failed to update menu item');
     return undefined;
   }
-  
-  const updatedItem = { ...items[index], ...updates };
-  const updatedItems = [...items];
-  updatedItems[index] = updatedItem;
-  
-  saveData('menuItems', updatedItems);
-  toast.success('Menu item updated successfully');
-  
-  return updatedItem;
 };
 
 export const deleteMenuItem = (id: number): boolean => {
-  const items = getMenuItems();
-  const filteredItems = items.filter(item => item.id !== id);
+  const initialLength = menuItems.length;
+  menuItems = menuItems.filter(item => item.id !== id);
   
-  if (filteredItems.length === items.length) {
-    toast.error('Menu item not found');
-    return false;
+  if (menuItems.length < initialLength) {
+    toast.success('Menu item deleted successfully');
+    return true;
   }
   
-  saveData('menuItems', filteredItems);
-  toast.success('Menu item deleted successfully');
-  
-  return true;
+  toast.error('Menu item not found');
+  return false;
 };
 
-// Offers CRUD
+// Offers
+let offers: OfferItem[] = [
+  {
+    id: 1,
+    title: 'Family Special',
+    description: 'Get 20% off on all family-sized pizzas. Perfect for gatherings!',
+    imageUrl: '/imgs/family-special.jpg',
+    discount: 20,
+    menuItemIds: [],
+    startDate: '2023-05-01',
+    endDate: '2023-12-31',
+    isActive: true
+  },
+  {
+    id: 2,
+    title: 'Weekday Lunch Deal',
+    description: 'Buy any medium pizza and get a free side Monday to Friday, 11am to 3pm.',
+    imageUrl: '/imgs/lunch-deal.jpg',
+    discount: 0,
+    menuItemIds: [1, 2, 5],
+    startDate: '2023-06-01',
+    endDate: '2023-12-31',
+    isActive: true
+  },
+  {
+    id: 3,
+    title: 'Student Discount',
+    description: 'Show your student ID and get 15% off your entire order!',
+    imageUrl: '/imgs/student-discount.jpg',
+    discount: 15,
+    menuItemIds: [],
+    startDate: '2023-09-01',
+    endDate: '2024-06-30',
+    isActive: true
+  }
+];
+
 export const getOffers = (): OfferItem[] => {
-  return loadData('offers', initialOffers);
+  return offers;
+};
+
+export const getOfferById = (id: number): OfferItem | undefined => {
+  return offers.find(offer => offer.id === id);
 };
 
 export const getActiveOffers = (): OfferItem[] => {
-  const offers = getOffers();
   const today = new Date().toISOString().split('T')[0];
-  
   return offers.filter(offer => 
     offer.isActive && 
     offer.startDate <= today && 
@@ -282,191 +333,317 @@ export const getActiveOffers = (): OfferItem[] => {
   );
 };
 
-export const getOfferById = (id: number): OfferItem | undefined => {
-  const offers = getOffers();
-  return offers.find(offer => offer.id === id);
-};
-
-export const addOffer = (offer: Omit<OfferItem, 'id'>): OfferItem => {
-  const offers = getOffers();
-  const newId = offers.length > 0 ? Math.max(...offers.map(o => o.id)) + 1 : 1;
-  const newOffer = { ...offer, id: newId };
+export const addOffer = (
+  offerData: Omit<OfferItem, 'id'> | FormData
+): OfferItem => {
+  const newId = offers.length > 0 ? Math.max(...offers.map(offer => offer.id)) + 1 : 1;
   
-  const updatedOffers = [...offers, newOffer];
-  saveData('offers', updatedOffers);
+  let newOffer: OfferItem;
+  
+  if (offerData instanceof FormData) {
+    const title = offerData.get('title') as string;
+    const description = offerData.get('description') as string;
+    const discount = parseFloat(offerData.get('discount') as string) || 0;
+    const startDate = offerData.get('startDate') as string;
+    const endDate = offerData.get('endDate') as string;
+    const isActive = offerData.get('isActive') === 'true';
+    
+    let menuItemIds: number[] = [];
+    const menuItemsString = offerData.get('menuItemIds');
+    if (menuItemsString) {
+      menuItemIds = JSON.parse(menuItemsString as string);
+    }
+    
+    // Get image file name from the FormData - this would come from the server response
+    // In testing, we're just using a placeholder
+    const imageFile = offerData.get('image') as File;
+    const imageUrl = imageFile ? `/uploads/${Date.now()}-${imageFile.name}` : '';
+    
+    newOffer = {
+      id: newId,
+      title,
+      description,
+      imageUrl,
+      discount,
+      menuItemIds,
+      startDate,
+      endDate,
+      isActive
+    };
+  } else {
+    newOffer = {
+      id: newId,
+      title: offerData.title,
+      description: offerData.description,
+      imageUrl: offerData.imageUrl,
+      discount: offerData.discount,
+      menuItemIds: offerData.menuItemIds || [],
+      startDate: offerData.startDate,
+      endDate: offerData.endDate,
+      isActive: offerData.isActive
+    };
+  }
+  
+  offers.push(newOffer);
   toast.success('Offer added successfully');
   
   return newOffer;
 };
 
-export const updateOffer = (id: number, updates: Partial<OfferItem>): OfferItem | undefined => {
-  const offers = getOffers();
+export const updateOffer = (
+  id: number, 
+  updates: Partial<OfferItem> | FormData
+): OfferItem | undefined => {
   const index = offers.findIndex(offer => offer.id === id);
+  if (index === -1) return undefined;
   
-  if (index === -1) {
-    toast.error('Offer not found');
-    return undefined;
+  if (updates instanceof FormData) {
+    // Extract data from FormData
+    const title = updates.get('title') as string;
+    const description = updates.get('description') as string;
+    const discount = parseFloat(updates.get('discount') as string) || 0;
+    const startDate = updates.get('startDate') as string;
+    const endDate = updates.get('endDate') as string;
+    const isActive = updates.get('isActive') === 'true';
+    
+    let menuItemIds: number[] = [];
+    const menuItemsString = updates.get('menuItemIds');
+    if (menuItemsString) {
+      menuItemIds = JSON.parse(menuItemsString as string);
+    }
+    
+    // Get image file name from the FormData - this would come from the server response
+    // In testing, we're just using a placeholder or keeping the old image
+    const imageFile = updates.get('image') as File;
+    const currentOffer = offers[index];
+    const imageUrl = imageFile ? `/uploads/${Date.now()}-${imageFile.name}` : currentOffer.imageUrl;
+    
+    offers[index] = {
+      ...offers[index],
+      title,
+      description,
+      imageUrl,
+      discount,
+      menuItemIds,
+      startDate,
+      endDate,
+      isActive
+    };
+  } else {
+    offers[index] = {
+      ...offers[index],
+      ...updates
+    };
   }
   
-  const updatedOffer = { ...offers[index], ...updates };
-  const updatedOffers = [...offers];
-  updatedOffers[index] = updatedOffer;
-  
-  saveData('offers', updatedOffers);
   toast.success('Offer updated successfully');
-  
-  return updatedOffer;
+  return offers[index];
 };
 
 export const deleteOffer = (id: number): boolean => {
-  const offers = getOffers();
-  const filteredOffers = offers.filter(offer => offer.id !== id);
+  const initialLength = offers.length;
+  offers = offers.filter(offer => offer.id !== id);
   
-  if (filteredOffers.length === offers.length) {
-    toast.error('Offer not found');
-    return false;
+  if (offers.length < initialLength) {
+    toast.success('Offer deleted successfully');
+    return true;
   }
   
-  saveData('offers', filteredOffers);
-  toast.success('Offer deleted successfully');
-  
-  return true;
+  toast.error('Offer not found');
+  return false;
 };
 
-// Feedback CRUD
+// Categories
+export const getMenuCategories = (): string[] => {
+  return [...new Set(menuItems.map(item => item.category))];
+};
+
+// Feedback
+let feedback: Feedback[] = [
+  {
+    id: 1,
+    name: 'John Smith',
+    email: 'john@example.com',
+    rating: 5,
+    message: 'Best pizza in town! The Meat Lovers is absolutely delicious.',
+    isPublished: true,
+    createdAt: '2023-05-15T14:30:00Z'
+  },
+  {
+    id: 2,
+    name: 'Sarah Johnson',
+    email: 'sarah@example.com',
+    rating: 4,
+    message: 'Great service and tasty food. Delivery was prompt.',
+    isPublished: true,
+    createdAt: '2023-06-22T18:45:00Z'
+  },
+  {
+    id: 3,
+    name: 'Michael Brown',
+    email: 'michael@example.com',
+    rating: 3,
+    message: 'Pizza was good but arrived a bit cold. Would order again though.',
+    isPublished: false,
+    createdAt: '2023-07-10T20:15:00Z'
+  }
+];
+
 export const getFeedback = (): Feedback[] => {
-  return loadData('feedback', initialFeedback);
+  return feedback;
 };
 
 export const getPublishedFeedback = (): Feedback[] => {
-  const feedback = getFeedback();
   return feedback.filter(f => f.isPublished);
 };
 
-export const getFeedbackById = (id: number): Feedback | undefined => {
-  const feedback = getFeedback();
-  return feedback.find(f => f.id === id);
-};
-
-export const addFeedback = (feedback: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Feedback => {
-  const feedbacks = getFeedback();
-  const newId = feedbacks.length > 0 ? Math.max(...feedbacks.map(f => f.id)) + 1 : 1;
-  const newFeedback = { 
-    ...feedback, 
-    id: newId, 
-    createdAt: new Date().toISOString().split('T')[0],
-    isPublished: false
+export const addFeedback = (feedbackData: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Feedback => {
+  const newId = feedback.length > 0 ? Math.max(...feedback.map(f => f.id)) + 1 : 1;
+  
+  const newFeedback: Feedback = {
+    id: newId,
+    ...feedbackData,
+    isPublished: false,
+    createdAt: new Date().toISOString()
   };
   
-  const updatedFeedbacks = [...feedbacks, newFeedback];
-  saveData('feedback', updatedFeedbacks);
+  feedback.push(newFeedback);
   toast.success('Feedback submitted successfully! Thank you for your comments.');
   
   return newFeedback;
 };
 
 export const updateFeedbackPublication = (id: number, isPublished: boolean): Feedback | undefined => {
-  const feedbacks = getFeedback();
-  const index = feedbacks.findIndex(f => f.id === id);
+  const index = feedback.findIndex(f => f.id === id);
+  if (index === -1) return undefined;
   
-  if (index === -1) {
-    toast.error('Feedback not found');
-    return undefined;
-  }
+  feedback[index] = {
+    ...feedback[index],
+    isPublished
+  };
   
-  const updatedFeedback = { ...feedbacks[index], isPublished };
-  const updatedFeedbacks = [...feedbacks];
-  updatedFeedbacks[index] = updatedFeedback;
-  
-  saveData('feedback', updatedFeedbacks);
   toast.success(`Feedback ${isPublished ? 'published' : 'unpublished'} successfully`);
-  
-  return updatedFeedback;
+  return feedback[index];
 };
 
-export const deleteFeedback = (id: number): boolean => {
-  const feedbacks = getFeedback();
-  const filteredFeedbacks = feedbacks.filter(f => f.id !== id);
-  
-  if (filteredFeedbacks.length === feedbacks.length) {
-    toast.error('Feedback not found');
-    return false;
+// Orders
+let orders: Order[] = [
+  {
+    id: 1,
+    customerName: 'David Wilson',
+    customerPhone: '555-123-4567',
+    customerAddress: '123 Main St, Anytown, USA',
+    orderType: 'delivery',
+    orderItems: [
+      {
+        menuItemId: 1,
+        name: 'Margherita Pizza',
+        price: 12.99,
+        quantity: 1,
+        size: 'Medium',
+        toppings: ['Extra Cheese']
+      },
+      {
+        menuItemId: 7,
+        name: 'Buffalo Wings',
+        price: 9.99,
+        quantity: 1
+      }
+    ],
+    totalAmount: 22.98,
+    status: 'completed',
+    createdAt: '2023-07-15T12:30:00Z'
+  },
+  {
+    id: 2,
+    customerName: 'Emily Davis',
+    customerPhone: '555-987-6543',
+    customerAddress: '',
+    orderType: 'pickup',
+    orderItems: [
+      {
+        menuItemId: 4,
+        name: 'Meat Lovers',
+        price: 16.99,
+        quantity: 2,
+        size: 'Large',
+        toppings: []
+      }
+    ],
+    totalAmount: 33.98,
+    status: 'completed',
+    createdAt: '2023-07-16T18:45:00Z'
+  },
+  {
+    id: 3,
+    customerName: 'Robert Johnson',
+    customerPhone: '555-456-7890',
+    customerAddress: '456 Oak Ave, Anytown, USA',
+    orderType: 'delivery',
+    orderItems: [
+      {
+        menuItemId: 2,
+        name: 'Pepperoni Pizza',
+        price: 14.99,
+        quantity: 1,
+        size: 'Family',
+        toppings: ['Mushrooms', 'Onions']
+      },
+      {
+        menuItemId: 8,
+        name: 'Garlic Bread',
+        price: 4.99,
+        quantity: 1
+      },
+      {
+        menuItemId: 10,
+        name: 'Chocolate Brownie',
+        price: 6.99,
+        quantity: 1
+      }
+    ],
+    totalAmount: 26.97,
+    status: 'preparing',
+    createdAt: '2023-07-17T19:15:00Z'
   }
-  
-  saveData('feedback', filteredFeedbacks);
-  toast.success('Feedback deleted successfully');
-  
-  return true;
-};
+];
 
-// Orders CRUD
 export const getOrders = (): Order[] => {
-  return loadData('orders', initialOrders);
-};
-
-export const getOrderById = (id: number): Order | undefined => {
-  const orders = getOrders();
-  return orders.find(order => order.id === id);
+  return orders;
 };
 
 export const addOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>): Order => {
-  const orders = getOrders();
-  const newId = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 1;
-  const newOrder = { 
-    ...orderData, 
-    id: newId, 
-    createdAt: new Date().toISOString(),
-    status: 'pending' as const
+  const newId = orders.length > 0 ? Math.max(...orders.map(order => order.id)) + 1 : 1;
+  
+  const newOrder: Order = {
+    id: newId,
+    ...orderData,
+    status: 'pending',
+    createdAt: new Date().toISOString()
   };
   
-  const updatedOrders = [...orders, newOrder];
-  saveData('orders', updatedOrders);
+  orders.push(newOrder);
   toast.success('Order placed successfully!');
   
   return newOrder;
 };
 
 export const updateOrderStatus = (id: number, status: Order['status']): Order | undefined => {
-  const orders = getOrders();
   const index = orders.findIndex(order => order.id === id);
+  if (index === -1) return undefined;
   
-  if (index === -1) {
-    toast.error('Order not found');
-    return undefined;
-  }
+  orders[index] = {
+    ...orders[index],
+    status
+  };
   
-  const updatedOrder = { ...orders[index], status };
-  const updatedOrders = [...orders];
-  updatedOrders[index] = updatedOrder;
-  
-  saveData('orders', updatedOrders);
   toast.success(`Order status updated to ${status}`);
-  
-  return updatedOrder;
+  return orders[index];
 };
 
-// Categories
-export const getMenuCategories = (): string[] => {
-  const items = getMenuItems();
-  const categories = [...new Set(items.map(item => item.category))];
-  return categories;
-};
-
-// Initialize data in localStorage if it doesn't exist
-export const initializeData = (): void => {
-  if (!localStorage.getItem('menuItems')) {
-    saveData('menuItems', initialMenuItems);
-  }
-  
-  if (!localStorage.getItem('offers')) {
-    saveData('offers', initialOffers);
-  }
-  
-  if (!localStorage.getItem('feedback')) {
-    saveData('feedback', initialFeedback);
-  }
-  
-  if (!localStorage.getItem('orders')) {
-    saveData('orders', initialOrders);
-  }
+// Contact messages
+export const sendContactMessage = (contactData: { name: string; email: string; subject: string; message: string }): boolean => {
+  // In a real app, this would send the message to the server
+  toast.success('Message sent successfully!');
+  return true;
 };
