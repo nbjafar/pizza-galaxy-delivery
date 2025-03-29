@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -52,6 +53,13 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				pizza: {
+					DEFAULT: '#B91C1C', // deep red
+					light: '#EF4444', // lighter red
+					accent: '#F97316', // warm orange
+					cream: '#FFFAF0', // creamy white
+					olive: '#4D7C0F', // olive green
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -62,6 +70,10 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				}
+			},
+			fontFamily: {
+				playfair: ['"Playfair Display"', 'serif'],
+				roboto: ['Roboto', 'sans-serif'],
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,12 +96,31 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+				'pizza-spin': {
+					'0%': { transform: 'rotate(0deg)' },
+					'100%': { transform: 'rotate(360deg)' },
+				},
+				'fade-in': {
+					'0%': { opacity: '0', transform: 'translateY(10px)' },
+					'100%': { opacity: '1', transform: 'translateY(0)' },
+				},
+				'bounce-subtle': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-5px)' },
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
-			}
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pizza-spin': 'pizza-spin 20s linear infinite',
+				'fade-in': 'fade-in 0.5s ease-out forwards',
+				'bounce-subtle': 'bounce-subtle 2s infinite',
+			},
+			backgroundImage: {
+				'pizza-pattern': "url('/pizza-pattern.png')",
+				'hero-image': "linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.7)), url('/hero-pizza.jpg')",
+			},
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
