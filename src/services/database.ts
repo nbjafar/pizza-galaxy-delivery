@@ -1,6 +1,5 @@
-
 import { MenuItem, OfferItem, Feedback, Order } from '@/models/types';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 // This is a mock database service for demo purposes
 // In a real application, this would connect to your MySQL database
@@ -427,7 +426,7 @@ export const addOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>):
   return newOrder;
 };
 
-export const updateOrderStatus = (id: number, status: OrderStatus): Order | undefined => {
+export const updateOrderStatus = (id: number, status: Order['status']): Order | undefined => {
   const orders = getOrders();
   const index = orders.findIndex(order => order.id === id);
   

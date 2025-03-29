@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -8,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getMenuItemById, addMenuItem, updateMenuItem, getMenuCategories } from '@/services/database';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 const MenuItemForm = () => {
   const { id } = useParams();

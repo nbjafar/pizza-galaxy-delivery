@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -9,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { getOfferById, addOffer, updateOffer, getMenuItems } from '@/services/database';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 const OfferForm = () => {
   const { id } = useParams();
