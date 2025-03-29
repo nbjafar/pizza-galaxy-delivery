@@ -4,6 +4,13 @@ import { MenuItem, OfferItem, Feedback, Order } from '@/models/types';
 import { addMenuItem as apiAddMenuItem, updateMenuItem as apiUpdateMenuItem } from './api';
 import { toast } from 'sonner';
 
+// Initialize mock data
+export const initializeData = () => {
+  console.log('Initializing local data for testing...');
+  // This function doesn't need to do anything else in our mock setup
+  // In a real app, this might load initial data from local storage
+};
+
 // Menu Items
 let menuItems: MenuItem[] = [
   {
@@ -526,6 +533,19 @@ export const updateFeedbackPublication = (id: number, isPublished: boolean): Fee
   return feedback[index];
 };
 
+export const deleteFeedback = (id: number): boolean => {
+  const initialLength = feedback.length;
+  feedback = feedback.filter(f => f.id !== id);
+  
+  if (feedback.length < initialLength) {
+    toast.success('Feedback deleted successfully');
+    return true;
+  }
+  
+  toast.error('Feedback not found');
+  return false;
+};
+
 // Orders
 let orders: Order[] = [
   {
@@ -559,7 +579,7 @@ let orders: Order[] = [
     customerName: 'Emily Davis',
     customerPhone: '555-987-6543',
     customerAddress: '',
-    orderType: 'pickup',
+    orderType: 'pickup' as const,
     orderItems: [
       {
         menuItemId: 4,
