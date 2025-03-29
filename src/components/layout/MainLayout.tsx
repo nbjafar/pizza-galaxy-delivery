@@ -2,6 +2,7 @@
 import React from 'react';
 import Header from './Header';
 import Footer from './Footer';
+import { Toaster } from 'sonner';
 
 type MainLayoutProps = {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       <Header />
       <main className="flex-grow">{children}</main>
       <Footer />
+      <Toaster />
     </div>
   );
 };

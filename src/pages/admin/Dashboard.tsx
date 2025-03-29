@@ -1,30 +1,11 @@
-
 import React from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { PizzaIcon, Tag, MessageSquare, Package, TrendingUp, Users } from 'lucide-react';
+import { Tag, MessageSquare, Package, TrendingUp, Users } from 'lucide-react';
 import { getMenuItems, getOffers, getFeedback, getOrders } from '@/services/database';
-
-const PizzaIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-6 w-6"
-  >
-    <path d="M12 2a10 10 0 1 0 10 10H2A10 10 0 0 0 12 2z" />
-    <path d="M12 12v10" />
-    <path d="M8 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0" />
-    <path d="M16 15a2 2 0 1 1-4 0 2 2 0 0 1 4 0" />
-    <path d="M8 15a2 2 0 1 1-4 0 2 2 0 0 1 4 0" />
-  </svg>
-);
+import PizzaIcon from '@/components/icons/PizzaIcon';
 
 const Dashboard = () => {
   const menuItems = getMenuItems();
@@ -70,7 +51,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div className="text-3xl font-bold">{menuItems.length}</div>
                 <div className="p-2 bg-blue-100 rounded-full">
-                  <PizzaIcon />
+                  <PizzaIcon className="h-6 w-6" />
                 </div>
               </div>
               <Link to="/admin/menu-items">
