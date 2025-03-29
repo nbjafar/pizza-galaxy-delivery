@@ -579,7 +579,7 @@ let orders: Order[] = [
     customerName: 'Emily Davis',
     customerPhone: '555-987-6543',
     customerAddress: '',
-    orderType: 'pickup' as const,
+    orderType: 'takeaway',
     orderItems: [
       {
         menuItemId: 4,
