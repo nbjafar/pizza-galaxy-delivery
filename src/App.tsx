@@ -1,5 +1,6 @@
 
 import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import Index from '@/pages/Index';
 import Menu from '@/pages/Menu';
 import MenuItemDetail from '@/pages/MenuItemDetail';
@@ -27,7 +28,7 @@ initializeData();
 
 function App() {
   return (
-    <>
+    <BrowserRouter>
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<Index />} />
@@ -59,7 +60,7 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster />
-    </>
+    </BrowserRouter>
   );
 }
 
