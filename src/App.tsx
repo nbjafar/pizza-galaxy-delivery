@@ -14,7 +14,7 @@ import AdminLogin from '@/pages/AdminLogin';
 import Dashboard from '@/pages/admin/Dashboard';
 import MenuItems from '@/pages/admin/MenuItems';
 import MenuItemForm from '@/pages/admin/MenuItemForm';
-import Offers as AdminOffers from '@/pages/admin/Offers';
+import AdminOffers from '@/pages/admin/Offers';
 import OfferForm from '@/pages/admin/OfferForm';
 import AdminFeedback from '@/pages/admin/Feedback';
 import Orders from '@/pages/admin/Orders';
