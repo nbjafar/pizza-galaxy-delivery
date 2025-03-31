@@ -13,6 +13,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Debug helper functions
+const logDebug = (area, message, data = null) => {
+  const logLevel = process.env.LOG_LEVEL || 'info';
+  if (logLevel === 'debug') {
+    console.log(`[DEBUG:${area}] ${message}`);
+    if (data) console.log(data);
+  }
+};
+
 // Configure CORS properly for all routes
 const corsOptions = {
   origin: '*', // Allow requests from any origin for debugging
@@ -26,12 +35,21 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// OPTIONS request handler for all routes to fix CORS issues
+app.options('*', (req, res) => {
+  logDebug('CORS', `Handling OPTIONS request for: ${req.url}`);
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.sendStatus(200);
+});
+
 // Log CORS requests if debug is enabled
 if (process.env.CORS_DEBUG === 'true') {
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
-    console.log('Origin:', req.headers.origin);
-    console.log('Headers:', req.headers);
+    logDebug('CORS', `${req.method} ${req.url}`);
+    logDebug('CORS', `Origin: ${req.headers.origin}`);
+    logDebug('CORS', 'Headers:', req.headers);
     next();
   });
 }
@@ -42,17 +60,22 @@ const UPLOAD_DIRECTORY = path.join(__dirname, process.env.UPLOAD_DIR || 'uploads
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOAD_DIRECTORY)) {
   fs.mkdirSync(UPLOAD_DIRECTORY, { recursive: true });
-  console.log(`Created uploads directory at: ${UPLOAD_DIRECTORY}`);
+  logDebug('UPLOAD', `Created uploads directory at: ${UPLOAD_DIRECTORY}`);
+} else {
+  logDebug('UPLOAD', `Uploads directory exists at: ${UPLOAD_DIRECTORY}`);
 }
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    logDebug('UPLOAD', `Saving file to: ${UPLOAD_DIRECTORY}`);
     cb(null, UPLOAD_DIRECTORY);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    const filename = file.fieldname + '-' + uniqueSuffix + ext;
+    logDebug('UPLOAD', `Generated filename: ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -64,14 +87,13 @@ const upload = multer({
   fileFilter: function (req, file, cb) {
     // Accept images only
     if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+      logDebug('UPLOAD', `File rejected - not an image: ${file.originalname}`);
       return cb(new Error('Only image files are allowed!'), false);
     }
+    logDebug('UPLOAD', `File accepted: ${file.originalname}`);
     cb(null, true);
   }
 });
-
-// Explicitly enable pre-flight for all routes
-app.options('*', cors(corsOptions));
 
 // Create MySQL connection pool
 const pool = mysql.createPool({
@@ -88,17 +110,34 @@ const pool = mysql.createPool({
 async function testDBConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('Database connection successful');
+    logDebug('DB', 'Database connection successful');
     connection.release();
   } catch (error) {
     console.error('Database connection failed:', error);
-    process.exit(1);
+    if (process.env.DB_CONNECTION_DEBUG === 'true') {
+      console.error('Database connection parameters:');
+      console.error(`Host: ${process.env.DB_HOST}`);
+      console.error(`User: ${process.env.DB_USER}`);
+      console.error(`Database: ${process.env.DB_NAME}`);
+      console.error('Check that MySQL is running and credentials are correct');
+    }
+    // Don't exit so the server can still provide useful error messages
+    // process.exit(1);
   }
 }
 
 testDBConnection();
 
-// ------------------------------------------------
+// General error handler middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ 
+    error: true, 
+    message: 'Internal Server Error', 
+    details: process.env.NODE_ENV === 'development' ? err.message : undefined 
+  });
+});
+
 // API Routes
 // ------------------------------------------------
 
@@ -873,22 +912,79 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
-// Serve uploaded files - Fix to ensure correct path and permissions
-app.use('/uploads', express.static(UPLOAD_DIRECTORY, {
-  setHeaders: (res, path) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-  }
-}));
+// Serve uploaded files with proper CORS headers
+app.use('/uploads', (req, res, next) => {
+  logDebug('STATIC', `Serving static file: ${req.url}`);
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(UPLOAD_DIRECTORY));
 
-// API route to get the upload directory path - Fix to return consistent paths
+// API route to get the upload directory path
 app.get('/api/upload-path', (req, res) => {
   const uploadUrl = process.env.UPLOAD_URL || '/uploads';
-  console.log('Returning upload path info:', { path: UPLOAD_DIRECTORY, url: uploadUrl });
+  logDebug('API', 'Returning upload path info:', { path: UPLOAD_DIRECTORY, url: uploadUrl });
   res.json({ 
     path: UPLOAD_DIRECTORY,
     url: uploadUrl
   });
+});
+
+// Health check endpoint for debugging
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'up',
+    timestamp: new Date().toISOString(),
+    database: pool ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV,
+    uploadDir: UPLOAD_DIRECTORY,
+    uploadDirExists: fs.existsSync(UPLOAD_DIRECTORY)
+  });
+});
+
+// Add diagnostic info endpoint
+app.get('/api/diagnostic', async (req, res) => {
+  try {
+    // Test database connection
+    let dbStatus = 'unknown';
+    try {
+      const connection = await pool.getConnection();
+      dbStatus = 'connected';
+      connection.release();
+    } catch (err) {
+      dbStatus = `error: ${err.message}`;
+    }
+    
+    // Check upload directory
+    const uploadDirExists = fs.existsSync(UPLOAD_DIRECTORY);
+    let uploadFiles = [];
+    if (uploadDirExists) {
+      uploadFiles = fs.readdirSync(UPLOAD_DIRECTORY);
+    }
+    
+    res.json({
+      server: {
+        version: '1.0.0',
+        environment: process.env.NODE_ENV,
+        time: new Date().toISOString()
+      },
+      database: {
+        status: dbStatus,
+        host: process.env.DB_HOST,
+        name: process.env.DB_NAME,
+        user: process.env.DB_USER
+      },
+      uploads: {
+        directory: UPLOAD_DIRECTORY,
+        exists: uploadDirExists,
+        files: uploadFiles,
+        url: process.env.UPLOAD_URL
+      }
+    });
+  } catch (error) {
+    console.error('Diagnostic error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Serve static files from the React app in production
@@ -911,4 +1007,8 @@ app.listen(PORT, () => {
     const files = fs.readdirSync(UPLOAD_DIRECTORY);
     console.log('Files in uploads directory:', files);
   }
+  
+  console.log('\nAPI endpoints for debugging:');
+  console.log(`- Health check: http://localhost:${PORT}/api/health`);
+  console.log(`- Diagnostic info: http://localhost:${PORT}/api/diagnostic`);
 });

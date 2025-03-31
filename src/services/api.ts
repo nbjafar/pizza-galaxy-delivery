@@ -11,7 +11,44 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: false, // Changed to false to prevent CORS preflight issues
+  timeout: 10000, // Add a timeout of 10 seconds
 });
+
+// Enhanced error handling helper
+const handleApiError = (error, context, showToast = true) => {
+  let errorMessage = 'An unexpected error occurred';
+  let errorDetails = '';
+  
+  if (axios.isAxiosError(error)) {
+    // Network error (no response from server)
+    if (error.code === 'ERR_NETWORK') {
+      errorMessage = 'Network error: Cannot connect to server';
+      errorDetails = `Check that the server is running at ${API_URL}`;
+    }
+    // Server responded with an error
+    else if (error.response) {
+      errorMessage = error.response.data?.message || `Error ${error.response.status}`;
+      errorDetails = JSON.stringify(error.response.data);
+    }
+    // Request was made but no response was received
+    else if (error.request) {
+      errorMessage = 'Server did not respond';
+      errorDetails = 'The request was made but no response was received';
+    }
+  }
+  
+  // Log detailed error information
+  console.error(`API Error in ${context}:`, errorMessage);
+  console.error('Details:', error);
+  if (errorDetails) console.error('Response details:', errorDetails);
+  
+  // Show toast notification if requested
+  if (showToast) {
+    toast.error(errorMessage);
+  }
+  
+  return errorMessage;
+};
 
 // Add request interceptor for debugging
 api.interceptors.request.use(
@@ -27,7 +64,7 @@ api.interceptors.request.use(
     return config;
   },
   error => {
-    console.error('API Request Error:', error);
+    handleApiError(error, 'request interceptor');
     return Promise.reject(error);
   }
 );
@@ -39,10 +76,40 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    console.error('API Response Error:', error.response || error);
+    handleApiError(error, 'response interceptor', false);
     return Promise.reject(error);
   }
 );
+
+// Health check function to test API connectivity
+export const checkApiHealth = async () => {
+  try {
+    const response = await api.get('/health');
+    console.log('API health check response:', response.data);
+    return { 
+      ok: true, 
+      data: response.data 
+    };
+  } catch (error) {
+    handleApiError(error, 'health check');
+    return { 
+      ok: false, 
+      error: error 
+    };
+  }
+};
+
+// Get diagnostic information for debugging
+export const getDiagnosticInfo = async () => {
+  try {
+    const response = await api.get('/diagnostic');
+    console.log('API diagnostic information:', response.data);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, 'diagnostic info');
+    return null;
+  }
+};
 
 // Auth API
 export const login = async (username: string, password: string) => {
@@ -50,9 +117,7 @@ export const login = async (username: string, password: string) => {
     const response = await api.post('/auth/login', { username, password });
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.message || 'Login failed');
-    }
+    handleApiError(error, 'login');
     throw new Error('Login failed');
   }
 };
@@ -63,8 +128,7 @@ export const getMenuItems = async (): Promise<MenuItem[]> => {
     const response = await api.get('/menu-items');
     return response.data;
   } catch (error) {
-    console.error('Error fetching menu items:', error);
-    toast.error('Failed to load menu items');
+    handleApiError(error, 'fetching menu items');
     return [];
   }
 };
