@@ -20,6 +20,7 @@ import AdminFeedback from '@/pages/admin/Feedback';
 import Orders from '@/pages/admin/Orders';
 import { Toaster } from '@/components/ui/sonner';
 import { initializeData } from '@/services/database';
+import { CartProvider } from '@/hooks/use-cart';
 import './App.css';
 import Debug from '@/pages/Debug';
 
@@ -28,39 +29,41 @@ initializeData();
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Index />} />
-        <Route path="/menu" element={<Menu />} />
-        <Route path="/menu/:id" element={<MenuItemDetail />} />
-        <Route path="/offers" element={<Offers />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/feedback" element={<Feedback />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/order-confirmation" element={<OrderConfirmation />} />
-        
-        {/* Debug page */}
-        <Route path="/debug" element={<Debug />} />
+    <CartProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Index />} />
+          <Route path="/menu" element={<Menu />} />
+          <Route path="/menu/:id" element={<MenuItemDetail />} />
+          <Route path="/offers" element={<Offers />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/feedback" element={<Feedback />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/order-confirmation" element={<OrderConfirmation />} />
+          
+          {/* Debug page */}
+          <Route path="/debug" element={<Debug />} />
 
-        {/* Admin routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<Dashboard />} />
-        <Route path="/admin/dashboard" element={<Dashboard />} />
-        <Route path="/admin/menu-items" element={<MenuItems />} />
-        <Route path="/admin/menu-items/new" element={<MenuItemForm />} />
-        <Route path="/admin/menu-items/edit/:id" element={<MenuItemForm />} />
-        <Route path="/admin/offers" element={<AdminOffers />} />
-        <Route path="/admin/offers/new" element={<OfferForm />} />
-        <Route path="/admin/offers/edit/:id" element={<OfferForm />} />
-        <Route path="/admin/feedback" element={<AdminFeedback />} />
-        <Route path="/admin/orders" element={<Orders />} />
-        
-        {/* 404 fallback */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster />
-    </BrowserRouter>
+          {/* Admin routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<Dashboard />} />
+          <Route path="/admin/dashboard" element={<Dashboard />} />
+          <Route path="/admin/menu-items" element={<MenuItems />} />
+          <Route path="/admin/menu-items/new" element={<MenuItemForm />} />
+          <Route path="/admin/menu-items/edit/:id" element={<MenuItemForm />} />
+          <Route path="/admin/offers" element={<AdminOffers />} />
+          <Route path="/admin/offers/new" element={<OfferForm />} />
+          <Route path="/admin/offers/edit/:id" element={<OfferForm />} />
+          <Route path="/admin/feedback" element={<AdminFeedback />} />
+          <Route path="/admin/orders" element={<Orders />} />
+          
+          {/* 404 fallback */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <Toaster />
+      </BrowserRouter>
+    </CartProvider>
   );
 }
 
