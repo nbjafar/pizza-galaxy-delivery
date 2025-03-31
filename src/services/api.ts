@@ -2,16 +2,25 @@ import axios from 'axios';
 import { MenuItem, OfferItem, Feedback, Order } from '@/models/types';
 import { toast } from 'sonner';
 
-// Create axios instance with base URL
+// Create axios instance with base URL from environment variable
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const DEBUG = import.meta.env.VITE_DEBUG === 'true';
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '10000', 10);
+
+console.log('API Configuration:', { 
+  API_URL, 
+  DEBUG, 
+  API_TIMEOUT,
+  'import.meta.env.DEV': import.meta.env.DEV 
+});
 
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: false, // Changed to false to prevent CORS preflight issues
-  timeout: 10000, // Add a timeout of 10 seconds
+  withCredentials: false,
+  timeout: API_TIMEOUT,
 });
 
 // Enhanced error handling helper
@@ -84,6 +93,7 @@ api.interceptors.response.use(
 // Health check function to test API connectivity
 export const checkApiHealth = async () => {
   try {
+    console.log('Checking API health at:', `${API_URL}/health`);
     const response = await api.get('/health');
     console.log('API health check response:', response.data);
     return { 
@@ -102,6 +112,7 @@ export const checkApiHealth = async () => {
 // Get diagnostic information for debugging
 export const getDiagnosticInfo = async () => {
   try {
+    console.log('Getting diagnostic info from:', `${API_URL}/diagnostic`);
     const response = await api.get('/diagnostic');
     console.log('API diagnostic information:', response.data);
     return response.data;

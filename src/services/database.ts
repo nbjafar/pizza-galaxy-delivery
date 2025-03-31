@@ -145,6 +145,13 @@ export const getOfferById = (id: number): OfferItem | undefined => {
   const cachedOffer = offersCache.find(offer => offer.id === id);
   if (cachedOffer) return cachedOffer;
   
+  // If not in cache, fetch individually and update cache in background
+  api.getOffers().then(data => {
+    offersCache = data;
+  }).catch(error => {
+    console.error(`Error fetching offers for id ${id}:`, error);
+  });
+  
   // Return undefined or find in updated cache
   return offersCache.find(offer => offer.id === id);
 };
