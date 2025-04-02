@@ -9,48 +9,189 @@ const api = axios.create({
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 10000,
 });
 
-// System Diagnostics
-export const checkApiHealth = async (): Promise<{ ok: boolean, message: string }> => {
+// Add request interceptor for debugging
+api.interceptors.request.use(request => {
+  if (import.meta.env.VITE_DEBUG === 'true') {
+    console.log('API Request:', request.method?.toUpperCase(), request.url);
+  }
+  return request;
+});
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  response => {
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('API Response:', response.status, response.config.method?.toUpperCase(), response.config.url);
+    }
+    return response;
+  },
+  error => {
+    if (axios.isAxiosError(error)) {
+      const url = error.config?.url || 'unknown endpoint';
+      const method = error.config?.method?.toUpperCase() || 'unknown method';
+      
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+        console.error(`Network error (${method} ${url}):`, error.message);
+      } else if (error.response) {
+        console.error(`API error ${error.response.status} (${method} ${url}):`, error.response.data);
+      } else {
+        console.error(`API error (${method} ${url}):`, error.message);
+      }
+    } else {
+      console.error('Non-Axios API error:', error);
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+// Fallback data - will be used when API is not available
+const fallbackData = {
+  menuItems: [
+    {
+      id: 1,
+      name: "Margherita",
+      description: "Classic pizza with tomato sauce, mozzarella, and basil",
+      price: 9.99,
+      category: "Classic Pizzas",
+      image: "/placeholder.svg",
+      popular: true,
+      discount: 0,
+      availableSizes: ["Small", "Medium", "Large"],
+      availableToppings: ["Extra Cheese", "Mushrooms", "Onions"]
+    },
+    {
+      id: 2,
+      name: "Pepperoni",
+      description: "Pizza with tomato sauce, mozzarella, and pepperoni",
+      price: 11.99,
+      category: "Classic Pizzas",
+      image: "/placeholder.svg",
+      popular: true,
+      discount: 10,
+      availableSizes: ["Small", "Medium", "Large", "Family"],
+      availableToppings: ["Extra Cheese", "Mushrooms", "Onions", "Bell Peppers"]
+    },
+    {
+      id: 3,
+      name: "Vegetarian",
+      description: "Pizza with tomato sauce, mozzarella, and assorted vegetables",
+      price: 10.99,
+      category: "Specialty Pizzas",
+      image: "/placeholder.svg",
+      popular: false,
+      discount: 0,
+      availableSizes: ["Medium", "Large"],
+      availableToppings: ["Extra Cheese", "Mushrooms", "Onions", "Bell Peppers", "Olives"]
+    }
+  ],
+  offers: [
+    {
+      id: 1,
+      title: "Family Weekend Deal",
+      description: "Get 20% off on all family-sized pizzas every weekend",
+      startDate: "2023-01-01",
+      endDate: "2023-12-31",
+      discount: 20,
+      imageUrl: "/placeholder.svg",
+      isActive: true,
+      menuItemIds: [1, 2]
+    }
+  ],
+  feedback: [
+    {
+      id: 1,
+      name: "John Doe",
+      email: "john@example.com",
+      rating: 5,
+      message: "The pizza was delicious!",
+      createdAt: "2023-01-15T12:00:00Z",
+      isPublished: true
+    }
+  ],
+  orders: [
+    {
+      id: 1,
+      customerName: "Jane Smith",
+      customerEmail: "jane@example.com",
+      customerPhone: "555-1234",
+      items: [
+        { id: 1, name: "Margherita", price: 9.99, quantity: 2 }
+      ],
+      totalAmount: 19.98,
+      status: "delivered",
+      orderType: "delivery",
+      address: "123 Main St, Anytown",
+      createdAt: "2023-01-20T15:30:00Z"
+    }
+  ]
+};
+
+// Helper function to safely make API requests with fallback
+const safeApiCall = async <T>(
+  apiCallFn: () => Promise<T>, 
+  fallbackValue: T, 
+  errorMessage: string
+): Promise<T> => {
   try {
-    const response = await api.get('/health');
-    return { ok: true, message: response.data.message || 'Server is running' };
+    return await apiCallFn();
   } catch (error) {
-    console.error('API health check failed:', error);
-    return { ok: false, message: 'Server connection failed' };
+    if (axios.isAxiosError(error) && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')) {
+      // Only show toast for network errors, not for other types of errors
+      toast.error(`${errorMessage} - Using offline data`, {
+        description: "Server connection failed. Check your internet or server status."
+      });
+      console.warn(`Using fallback data for "${errorMessage}"`);
+      return fallbackValue;
+    }
+    throw error; // Re-throw other errors to be handled by the caller
   }
 };
 
+// System Diagnostics
+export const checkApiHealth = async (): Promise<{ ok: boolean, message: string }> => {
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/health');
+      return { ok: true, message: response.data.message || 'Server is running' };
+    },
+    { ok: false, message: 'Server connection failed - offline mode' },
+    'API health check failed'
+  );
+};
+
 export const getDiagnosticInfo = async (): Promise<any> => {
-  try {
-    const response = await api.get('/diagnostics');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching diagnostic info:', error);
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/diagnostics');
+      return response.data;
+    },
+    { status: 'offline', version: 'unknown', uptime: 0, memoryUsage: {}, environment: 'offline' },
+    'Error fetching diagnostic info'
+  );
 };
 
 // Menu Items
 export const getMenuItems = async (): Promise<MenuItem[]> => {
-  try {
-    const response = await api.get('/menu-items');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching menu items:', error);
-    toast.error('Failed to load menu items');
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/menu-items');
+      return response.data;
+    },
+    fallbackData.menuItems,
+    'Failed to load menu items'
+  );
 };
 
 export const getMenuItemById = async (id: number): Promise<MenuItem | undefined> => {
-  try {
-    const response = await api.get(`/menu-items/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching menu item ${id}:`, error);
-    toast.error('Failed to load menu item');
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get(`/menu-items/${id}`);
+      return response.data;
+    },
+    fallbackData.menuItems.find(item => item.id === id),
+    `Failed to load menu item ${id}`
+  );
 };
 
 export const addMenuItem = async (
@@ -99,37 +240,37 @@ export const deleteMenuItem = async (id: number): Promise<void> => {
 
 // Menu Categories
 export const getMenuCategories = async (): Promise<string[]> => {
-  try {
-    const response = await api.get('/menu-categories');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching menu categories:', error);
-    toast.error('Failed to load menu categories');
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/menu-categories');
+      return response.data;
+    },
+    [...new Set(fallbackData.menuItems.map(item => item.category))],
+    'Failed to load menu categories'
+  );
 };
 
 // Offers
 export const getOffers = async (): Promise<OfferItem[]> => {
-  try {
-    const response = await api.get('/offers');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching offers:', error);
-    toast.error('Failed to load offers');
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/offers');
+      return response.data;
+    },
+    fallbackData.offers,
+    'Failed to load offers'
+  );
 };
 
 export const getOfferById = async (id: number): Promise<OfferItem | undefined> => {
-  try {
-    const response = await api.get(`/offers/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching offer ${id}:`, error);
-    toast.error('Failed to load offer');
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get(`/offers/${id}`);
+      return response.data;
+    },
+    fallbackData.offers.find(offer => offer.id === id),
+    `Failed to load offer ${id}`
+  );
 };
 
 export const addOffer = async (offer: FormData): Promise<OfferItem> => {
@@ -173,14 +314,14 @@ export const deleteOffer = async (id: number): Promise<void> => {
 
 // Feedback
 export const getFeedback = async (): Promise<Feedback[]> => {
-  try {
-    const response = await api.get('/feedback');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching feedback:', error);
-    toast.error('Failed to load feedback');
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/feedback');
+      return response.data;
+    },
+    fallbackData.feedback,
+    'Failed to load feedback'
+  );
 };
 
 export const addFeedback = async (feedback: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Promise<Feedback> => {
@@ -220,14 +361,14 @@ export const deleteFeedback = async (id: number): Promise<void> => {
 
 // Orders
 export const getOrders = async (): Promise<Order[]> => {
-  try {
-    const response = await api.get('/orders');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    toast.error('Failed to load orders');
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/orders');
+      return response.data;
+    },
+    fallbackData.orders,
+    'Failed to load orders'
+  );
 };
 
 export const addOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
@@ -269,13 +410,14 @@ export const sendContactMessage = async (contactData: { name: string; email: str
 
 // Upload directory
 export const getUploadDirectoryInfo = async (): Promise<{ path: string, url: string }> => {
-  try {
-    const response = await api.get('/upload-directory');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching upload directory info:', error);
-    throw error;
-  }
+  return safeApiCall(
+    async () => {
+      const response = await api.get('/upload-directory');
+      return response.data;
+    },
+    { path: 'server/uploads', url: '/uploads' },
+    'Error fetching upload directory info'
+  );
 };
 
 // Export the axios instance for direct use if needed
