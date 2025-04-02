@@ -204,12 +204,11 @@ export const getActiveOffers = (): OfferItem[] => {
 export const deleteOffer = async (id: number): Promise<boolean> => {
   try {
     // Call the API to delete the offer
-    await api.delete(`/offers/${id}`);
+    await api.deleteOffer(id);
     
     // Update cache after successful deletion
     offersCache = offersCache.filter(offer => offer.id !== id);
     
-    toast.success('Offer deleted successfully');
     return true;
   } catch (error) {
     console.error(`Error deleting offer ${id}:`, error);
@@ -359,7 +358,11 @@ export const initializeData = () => {
     console.log(`Loaded ${data.length} menu items`);
     
     // After menu items are loaded, derive categories
-    categoriesCache = [...new Set(data.map(item => item.category))];
+    const categorySet = new Set<string>();
+    data.forEach(item => {
+      if (item.category) categorySet.add(item.category);
+    });
+    categoriesCache = Array.from(categorySet);
   }).catch(error => {
     console.error('Error preloading menu items:', error);
   });
