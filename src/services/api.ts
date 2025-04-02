@@ -64,6 +64,37 @@ export const loginAdmin = async (username: string, password: string) => {
   }
 };
 
+// Diagnostic endpoints
+export const checkApiHealth = async (): Promise<{ ok: boolean, message: string }> => {
+  try {
+    const response = await api.get('/health');
+    return { ok: true, message: response.data.message || 'API is online' };
+  } catch (error) {
+    console.error('Health check failed:', error);
+    return { ok: false, message: 'Unable to connect to API' };
+  }
+};
+
+export const getDiagnosticInfo = async (): Promise<any> => {
+  try {
+    const response = await api.get('/diagnostic');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching diagnostic info:', error);
+    throw error;
+  }
+};
+
+export const getUploadDirectoryInfo = async (): Promise<{ path: string, url: string }> => {
+  try {
+    const response = await api.get('/config/upload-directory');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching upload directory info:', error);
+    return { path: 'server/uploads', url: '/uploads' };
+  }
+};
+
 // Menu Categories
 export const getMenuCategories = async (): Promise<string[]> => {
   try {
@@ -311,7 +342,7 @@ export const getFeedback = async (): Promise<Feedback[]> => {
   }
 };
 
-export const submitFeedback = async (feedback: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Promise<Feedback> => {
+export const addFeedback = async (feedback: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Promise<Feedback> => {
   try {
     const response = await api.post('/feedback', feedback);
     toast.success('Feedback submitted successfully');
@@ -344,6 +375,30 @@ export const submitContactForm = async (data: { name: string; email: string; sub
   } catch (error) {
     console.error('Error submitting contact form:', error);
     toast.error('Failed to submit contact form');
+    throw error;
+  }
+};
+
+export const sendContactMessage = async (contactData: { name: string; email: string; subject: string; message: string }): Promise<boolean> => {
+  try {
+    const response = await api.post('/contact', contactData);
+    toast.success('Contact form submitted successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending contact message:', error);
+    toast.error('Failed to submit contact form');
+    return false;
+  }
+};
+
+export const addOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
+  try {
+    const response = await api.post('/orders', orderData);
+    toast.success('Order placed successfully');
+    return response.data;
+  } catch (error) {
+    console.error('Error placing order:', error);
+    toast.error('Failed to place order');
     throw error;
   }
 };

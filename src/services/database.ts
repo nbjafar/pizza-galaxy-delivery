@@ -114,12 +114,10 @@ export const updateMenuItem = async (
 
 export const deleteMenuItem = async (id: number): Promise<boolean> => {
   try {
-    const success = await api.deleteMenuItem(id);
-    if (success) {
-      // Update cache
-      menuItemsCache = menuItemsCache.filter(item => item.id !== id);
-    }
-    return success;
+    await api.deleteMenuItem(id);
+    // Update cache
+    menuItemsCache = menuItemsCache.filter(item => item.id !== id);
+    return true;
   } catch (error) {
     console.error(`Error deleting menu item ${id}:`, error);
     throw error;
@@ -157,7 +155,7 @@ export const getOfferById = (id: number): OfferItem | undefined => {
 };
 
 export const addOffer = async (
-  offer: Omit<OfferItem, 'id'> | FormData
+  offer: FormData
 ): Promise<OfferItem> => {
   try {
     const newOffer = await api.addOffer(offer);
@@ -172,7 +170,7 @@ export const addOffer = async (
 
 export const updateOffer = async (
   id: number, 
-  updates: Partial<OfferItem> | FormData
+  updates: FormData
 ): Promise<OfferItem | undefined> => {
   try {
     const updatedOffer = await api.updateOffer(id, updates);
@@ -265,7 +263,7 @@ export const addFeedback = async (feedback: Omit<Feedback, 'id' | 'createdAt' | 
 
 export const updateFeedbackPublication = async (id: number, isPublished: boolean): Promise<Feedback | undefined> => {
   try {
-    const updatedFeedback = await api.updateFeedbackPublication(id, isPublished);
+    const updatedFeedback = await api.updateFeedbackPublishStatus(id, isPublished);
     if (updatedFeedback) {
       // Update cache
       const index = feedbackCache.findIndex(f => f.id === id);
