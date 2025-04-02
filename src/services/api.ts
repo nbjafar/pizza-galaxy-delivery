@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { MenuItem, OfferItem, Feedback, Order } from '@/models/types';
 import { toast } from 'sonner';
@@ -191,12 +192,19 @@ export const addMenuItem = async (
       Object.entries(item).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
           formData.append('image', value);
+        } else if (key === 'imageFile' && value instanceof File) {
+          formData.append('image', value); // Make sure we use 'image' as the field name for the server
         } else if (Array.isArray(value)) {
           formData.append(key, JSON.stringify(value));
-        } else if (value !== undefined) {
+        } else if (value !== undefined && value !== null) {
           formData.append(key, String(value));
         }
       });
+    }
+
+    // Ensure boolean values are properly stringified
+    if (!formData.has('popular') && item instanceof Object && 'popular' in item) {
+      formData.set('popular', String(item.popular));
     }
 
     // Log FormData contents for debugging
@@ -205,6 +213,7 @@ export const addMenuItem = async (
       console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
     }
 
+    // Make sure content type is NOT set for FormData (browser will set it with boundary)
     const response = await api.post('/menu-items', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -216,8 +225,11 @@ export const addMenuItem = async (
   } catch (error) {
     console.error('Error adding menu item:', error);
     
+    // Enhanced error reporting
     if (axios.isAxiosError(error) && error.response) {
-      toast.error(`Failed to add menu item: ${error.response.data.message || error.message}`);
+      const errorData = error.response.data;
+      console.error('Server error response:', errorData);
+      toast.error(`Failed to add menu item: ${errorData.message || error.message}`);
     } else {
       toast.error('Failed to add menu item');
     }
@@ -241,12 +253,19 @@ export const updateMenuItem = async (
       Object.entries(updates).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
           formData.append('image', value);
+        } else if (key === 'imageFile' && value instanceof File) {
+          formData.append('image', value); // Make sure we use 'image' as the field name for the server
         } else if (Array.isArray(value)) {
           formData.append(key, JSON.stringify(value));
-        } else if (value !== undefined) {
+        } else if (value !== undefined && value !== null) {
           formData.append(key, String(value));
         }
       });
+    }
+
+    // Ensure boolean values are properly stringified
+    if (!formData.has('popular') && updates instanceof Object && 'popular' in updates) {
+      formData.set('popular', String(updates.popular));
     }
 
     // Log FormData contents for debugging
@@ -267,7 +286,9 @@ export const updateMenuItem = async (
     console.error(`Error updating menu item ${id}:`, error);
     
     if (axios.isAxiosError(error) && error.response) {
-      toast.error(`Failed to update menu item: ${error.response.data.message || error.message}`);
+      const errorData = error.response.data;
+      console.error('Server error response:', errorData);
+      toast.error(`Failed to update menu item: ${errorData.message || error.message}`);
     } else {
       toast.error('Failed to update menu item');
     }

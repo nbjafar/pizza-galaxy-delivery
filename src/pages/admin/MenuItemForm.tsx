@@ -233,7 +233,9 @@ const MenuItemForm = () => {
       itemFormData.append('description', formData.description);
       itemFormData.append('price', formData.price.toString());
       itemFormData.append('category', finalCategory);
-      itemFormData.append('popular', formData.popular.toString());
+      
+      // Explicitly convert boolean to string to ensure proper server handling
+      itemFormData.append('popular', formData.popular ? 'true' : 'false');
       
       if (formData.discount > 0) {
         itemFormData.append('discount', formData.discount.toString());
