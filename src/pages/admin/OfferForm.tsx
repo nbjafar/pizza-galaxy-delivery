@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -189,52 +188,43 @@ const OfferForm = () => {
       return;
     }
     
-    // Create FormData for API submission if there's an image file
+    // Always create FormData for API submission regardless of image
+    const offerFormData = new FormData();
+    offerFormData.append('title', formData.title);
+    offerFormData.append('description', formData.description);
+    offerFormData.append('discount', formData.discount.toString());
+    
+    // If there's an image URL and no file, pass the URL
+    if (formData.imageUrl && !formData.imageFile) {
+      offerFormData.append('imageUrl', formData.imageUrl);
+    }
+    
+    // If there are menu items, add them
+    if (formData.menuItemIds.length > 0) {
+      offerFormData.append('menuItemIds', JSON.stringify(formData.menuItemIds));
+    }
+    
+    offerFormData.append('startDate', formData.startDate);
+    offerFormData.append('endDate', formData.endDate);
+    offerFormData.append('isActive', formData.isActive.toString());
+    
+    // Add image file if present
     if (formData.imageFile) {
-      const offerFormData = new FormData();
-      offerFormData.append('title', formData.title);
-      offerFormData.append('description', formData.description);
-      offerFormData.append('discount', formData.discount.toString());
-      if (formData.menuItemIds.length > 0) {
-        offerFormData.append('menuItemIds', JSON.stringify(formData.menuItemIds));
-      }
-      offerFormData.append('startDate', formData.startDate);
-      offerFormData.append('endDate', formData.endDate);
-      offerFormData.append('isActive', formData.isActive.toString());
       offerFormData.append('image', formData.imageFile);
-      
-      try {
-        if (isEditMode) {
-          await updateOffer(Number(id), offerFormData);
-        } else {
-          await addOffer(offerFormData);
-        }
-        navigate('/admin/offers');
-      } catch (error) {
-        console.error('Error submitting form with image:', error);
-        toast.error('Failed to save offer');
-      }
-    } else {
-      // Use original JSON based submission for URL-based images
-      const offerData = {
-        title: formData.title,
-        description: formData.description,
-        imageUrl: formData.imageUrl || undefined,
-        discount: formData.discount,
-        menuItemIds: formData.menuItemIds.length > 0 ? formData.menuItemIds : undefined,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        isActive: formData.isActive
-      };
-      
+    }
+    
+    try {
       if (isEditMode) {
-        updateOffer(Number(id), offerData);
+        await updateOffer(Number(id), offerFormData);
+        toast.success('Offer updated successfully');
       } else {
-        addOffer(offerData);
+        await addOffer(offerFormData);
+        toast.success('Offer added successfully');
       }
-      
-      // Redirect to offers list
       navigate('/admin/offers');
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast.error('Failed to save offer');
     }
   };
 

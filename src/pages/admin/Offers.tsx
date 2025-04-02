@@ -49,7 +49,10 @@ const Offers = () => {
   });
   
   const handleToggleActive = (id: number, isActive: boolean) => {
-    updateOffer(id, { isActive });
+    // Create FormData for updating the active status
+    const formData = new FormData();
+    formData.append('isActive', isActive.toString());
+    updateOffer(id, formData);
   };
   
   const handleDeleteClick = (id: number) => {
