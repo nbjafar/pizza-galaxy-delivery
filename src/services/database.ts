@@ -203,9 +203,14 @@ export const getActiveOffers = (): OfferItem[] => {
 
 export const deleteOffer = async (id: number): Promise<boolean> => {
   try {
-    // Since this isn't fully implemented in the API yet, we'll just show a toast
-    toast.error('Offer deletion is not implemented on the server yet');
-    return false;
+    // Call the API to delete the offer
+    await api.delete(`/offers/${id}`);
+    
+    // Update cache after successful deletion
+    offersCache = offersCache.filter(offer => offer.id !== id);
+    
+    toast.success('Offer deleted successfully');
+    return true;
   } catch (error) {
     console.error(`Error deleting offer ${id}:`, error);
     toast.error('Failed to delete offer');
