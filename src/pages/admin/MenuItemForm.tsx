@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -320,6 +321,7 @@ const MenuItemForm = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     className={errors.name ? 'border-red-500' : ''}
+                    autoComplete="off"
                   />
                   {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
                 </div>
@@ -333,6 +335,7 @@ const MenuItemForm = () => {
                     onChange={handleInputChange}
                     className={errors.description ? 'border-red-500' : ''}
                     rows={4}
+                    autoComplete="off"
                   />
                   {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
                 </div>
@@ -348,6 +351,7 @@ const MenuItemForm = () => {
                       value={formData.price}
                       onChange={handleNumberChange}
                       className={errors.price ? 'border-red-500' : ''}
+                      autoComplete="off"
                     />
                     {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
                   </div>
@@ -362,12 +366,13 @@ const MenuItemForm = () => {
                       max="100"
                       value={formData.discount}
                       onChange={handleNumberChange}
+                      autoComplete="off"
                     />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Item Image</Label>
+                  <Label htmlFor="imageFile">Item Image</Label>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -379,6 +384,7 @@ const MenuItemForm = () => {
                         onChange={handleInputChange}
                         placeholder="https://example.com/image.jpg"
                         disabled={!!formData.imageFile}
+                        autoComplete="off"
                       />
                     </div>
                     
@@ -397,6 +403,7 @@ const MenuItemForm = () => {
                                 accept="image/*"
                                 onChange={handleFileChange}
                                 className="sr-only"
+                                autoComplete="off"
                               />
                             </label>
                             <p className="pl-1">or drag and drop</p>
@@ -417,14 +424,16 @@ const MenuItemForm = () => {
                 </div>
                 
                 <div>
-                  <Label>Category*</Label>
+                  <Label htmlFor="category">Category*</Label>
                   {errors.category && <p className="text-red-500 text-sm">{errors.category}</p>}
                   
                   <select
+                    id="category"
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 mt-1"
+                    autoComplete="off"
                   >
                     <option value="">Select a category</option>
                     {categories.map((category) => (
@@ -442,6 +451,7 @@ const MenuItemForm = () => {
                       value={formData.newCategory}
                       onChange={handleInputChange}
                       placeholder="E.g. Specialty Pizzas"
+                      autoComplete="off"
                     />
                   </div>
                 </div>
@@ -449,6 +459,7 @@ const MenuItemForm = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="popular"
+                    name="popular"
                     checked={formData.popular}
                     onCheckedChange={handleCheckboxChange}
                   />
@@ -464,6 +475,7 @@ const MenuItemForm = () => {
                       <div key={size} className="flex items-center space-x-2">
                         <Checkbox
                           id={`size-${size}`}
+                          name={`size-${size}`}
                           checked={formData.availableSizes.includes(size)}
                           onCheckedChange={() => toggleSize(size)}
                         />
@@ -480,6 +492,7 @@ const MenuItemForm = () => {
                       <div key={topping} className="flex items-center space-x-2">
                         <Checkbox
                           id={`topping-${topping}`}
+                          name={`topping-${topping}`}
                           checked={formData.availableToppings.includes(topping)}
                           onCheckedChange={() => toggleTopping(topping)}
                         />
@@ -512,8 +525,8 @@ const MenuItemForm = () => {
               <Button variant="outline" type="button" onClick={() => navigate('/admin/menu-items')}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-pizza hover:bg-pizza-light">
-                {isEditMode ? 'Update Item' : 'Add Item'}
+              <Button type="submit" className="bg-pizza hover:bg-pizza-light" disabled={loading}>
+                {loading ? 'Processing...' : isEditMode ? 'Update Item' : 'Add Item'}
               </Button>
             </div>
           </form>

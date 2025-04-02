@@ -1,194 +1,125 @@
-
 import axios from 'axios';
 import { MenuItem, OfferItem, Feedback, Order } from '@/models/types';
 import { toast } from 'sonner';
 
-// Create axios instance with base URL from environment variable
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const DEBUG = import.meta.env.VITE_DEBUG === 'true';
-const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT || '10000', 10);
-
-console.log('API Configuration:', { 
-  API_URL, 
-  DEBUG, 
-  API_TIMEOUT,
-  'import.meta.env.DEV': import.meta.env.DEV 
-});
-
+// Create axios instance with base configuration
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000'),
   headers: {
     'Content-Type': 'application/json',
-  },
-  withCredentials: false,
-  timeout: API_TIMEOUT,
+  }
 });
 
-// Enhanced error handling helper
-const handleApiError = (error, context, showToast = true) => {
-  let errorMessage = 'An unexpected error occurred';
-  let errorDetails = '';
-  
-  if (axios.isAxiosError(error)) {
-    // Network error (no response from server)
-    if (error.code === 'ERR_NETWORK') {
-      errorMessage = 'Network error: Cannot connect to server';
-      errorDetails = `Check that the server is running at ${API_URL}`;
-    }
-    // Server responded with an error
-    else if (error.response) {
-      errorMessage = error.response.data?.message || `Error ${error.response.status}`;
-      errorDetails = JSON.stringify(error.response.data);
-    }
-    // Request was made but no response was received
-    else if (error.request) {
-      errorMessage = 'Server did not respond';
-      errorDetails = 'The request was made but no response was received';
-    }
-  }
-  
-  // Log detailed error information
-  console.error(`API Error in ${context}:`, errorMessage);
-  console.error('Details:', error);
-  if (errorDetails) console.error('Response details:', errorDetails);
-  
-  // Show toast notification if requested
-  if (showToast) {
-    toast.error(errorMessage);
-  }
-  
-  return errorMessage;
-};
-
-// Add request interceptor for debugging
+// Log all request and response for debugging
 api.interceptors.request.use(
-  config => {
-    console.log('API Request:', config.method?.toUpperCase(), config.url);
-    // Log form data contents if present
-    if (config.data instanceof FormData) {
-      console.log('FormData contents:');
-      for (const pair of (config.data as any).entries()) {
-        console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+  (config) => {
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('API Request:', config.method?.toUpperCase(), config.url);
+      if (config.data) {
+        console.log('Request data:', config.data);
       }
     }
     return config;
   },
-  error => {
-    handleApiError(error, 'request interceptor');
+  (error) => {
+    console.error('API Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Add response interceptor for debugging
 api.interceptors.response.use(
-  response => {
-    console.log('API Response:', response.status, response.config.url);
+  (response) => {
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('API Response:', response.status, response.config.url);
+    }
     return response;
   },
-  error => {
-    handleApiError(error, 'response interceptor', false);
+  (error) => {
+    console.error('API Response Error:', error);
+    
+    if (axios.isAxiosError(error)) {
+      // Log detailed error information
+      if (error.response) {
+        console.error('Error status:', error.response.status);
+        console.error('Error data:', error.response.data);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      }
+    }
+    
     return Promise.reject(error);
   }
 );
 
-// Health check function to test API connectivity
-export const checkApiHealth = async () => {
-  try {
-    console.log('Checking API health at:', `${API_URL}/health`);
-    const response = await api.get('/health');
-    console.log('API health check response:', response.data);
-    return { 
-      ok: true, 
-      data: response.data 
-    };
-  } catch (error) {
-    handleApiError(error, 'health check');
-    return { 
-      ok: false, 
-      error: error 
-    };
-  }
-};
+// API functions
 
-// Get diagnostic information for debugging
-export const getDiagnosticInfo = async () => {
-  try {
-    console.log('Getting diagnostic info from:', `${API_URL}/diagnostic`);
-    const response = await api.get('/diagnostic');
-    console.log('API diagnostic information:', response.data);
-    return response.data;
-  } catch (error) {
-    handleApiError(error, 'diagnostic info');
-    return null;
-  }
-};
-
-// Auth API
-export const login = async (username: string, password: string) => {
+// Auth
+export const loginAdmin = async (username: string, password: string) => {
   try {
     const response = await api.post('/auth/login', { username, password });
     return response.data;
   } catch (error) {
-    handleApiError(error, 'login');
-    throw new Error('Login failed');
+    throw error;
   }
 };
 
-// Menu Items API
+// Menu Categories
+export const getMenuCategories = async (): Promise<string[]> => {
+  try {
+    const response = await api.get('/categories');
+    // Map to array of category names
+    return response.data.map((category: { id: number, name: string }) => category.name);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
+  }
+};
+
+// Menu Items
 export const getMenuItems = async (): Promise<MenuItem[]> => {
   try {
     const response = await api.get('/menu-items');
     return response.data;
   } catch (error) {
-    handleApiError(error, 'fetching menu items');
+    console.error('Error fetching menu items:', error);
+    toast.error('Failed to load menu items');
     return [];
   }
 };
 
-export const getMenuItemById = async (id: number): Promise<MenuItem | undefined> => {
+export const getMenuItemById = async (id: number): Promise<MenuItem | null> => {
   try {
     const response = await api.get(`/menu-items/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching menu item ${id}:`, error);
-    toast.error('Failed to load menu item details');
-    return undefined;
+    throw error;
   }
 };
 
-export const getMenuItemsByCategory = async (category: string): Promise<MenuItem[]> => {
+export const deleteMenuItem = async (id: number): Promise<void> => {
   try {
-    const allItems = await getMenuItems();
-    return allItems.filter(item => item.category === category);
+    await api.delete(`/menu-items/${id}`);
+    toast.success('Menu item deleted successfully');
   } catch (error) {
-    console.error(`Error fetching menu items for category ${category}:`, error);
-    toast.error('Failed to load category items');
-    return [];
+    console.error(`Error deleting menu item ${id}:`, error);
+    toast.error('Failed to delete menu item');
+    throw error;
   }
 };
 
-export const getPopularMenuItems = async (): Promise<MenuItem[]> => {
-  try {
-    const allItems = await getMenuItems();
-    return allItems.filter(item => item.popular);
-  } catch (error) {
-    console.error('Error fetching popular menu items:', error);
-    toast.error('Failed to load popular items');
-    return [];
-  }
-};
-
-export const addMenuItem = async (
-  item: Omit<MenuItem, 'id'> | FormData
-): Promise<MenuItem> => {
+export const addMenuItem = async (item: FormData | object): Promise<MenuItem> => {
   try {
     let formData: FormData;
     
+    // Check if item is already FormData
     if (item instanceof FormData) {
       formData = item;
     } else {
-      // Handle JSON objects by creating FormData
+      // Convert object to FormData
       formData = new FormData();
+      
       Object.entries(item).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
           formData.append('image', value);
@@ -196,6 +127,8 @@ export const addMenuItem = async (
           formData.append('image', value); // Make sure we use 'image' as the field name for the server
         } else if (Array.isArray(value)) {
           formData.append(key, JSON.stringify(value));
+        } else if (typeof value === 'boolean') {
+          formData.append(key, value ? 'true' : 'false');
         } else if (value !== undefined && value !== null) {
           formData.append(key, String(value));
         }
@@ -204,16 +137,16 @@ export const addMenuItem = async (
 
     // Ensure boolean values are properly stringified
     if (!formData.has('popular') && item instanceof Object && 'popular' in item) {
-      formData.set('popular', String(item.popular));
+      formData.set('popular', (item as any).popular ? 'true' : 'false');
     }
 
     // Log FormData contents for debugging
-    console.log('FormData contents for upload:');
+    console.log('FormData contents:');
     for (const pair of (formData as any).entries()) {
       console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
     }
 
-    // Make sure content type is NOT set for FormData (browser will set it with boundary)
+    // Make the request with the right headers for file upload
     const response = await api.post('/menu-items', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -238,18 +171,17 @@ export const addMenuItem = async (
   }
 };
 
-export const updateMenuItem = async (
-  id: number, 
-  updates: Partial<MenuItem> | FormData
-): Promise<MenuItem | undefined> => {
+export const updateMenuItem = async (id: number, updates: FormData | object): Promise<MenuItem> => {
   try {
     let formData: FormData;
     
+    // Check if updates is already FormData
     if (updates instanceof FormData) {
       formData = updates;
     } else {
-      // Convert to FormData
+      // Convert object to FormData
       formData = new FormData();
+      
       Object.entries(updates).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
           formData.append('image', value);
@@ -257,6 +189,8 @@ export const updateMenuItem = async (
           formData.append('image', value); // Make sure we use 'image' as the field name for the server
         } else if (Array.isArray(value)) {
           formData.append(key, JSON.stringify(value));
+        } else if (typeof value === 'boolean') {
+          formData.append(key, value ? 'true' : 'false');
         } else if (value !== undefined && value !== null) {
           formData.append(key, String(value));
         }
@@ -265,15 +199,15 @@ export const updateMenuItem = async (
 
     // Ensure boolean values are properly stringified
     if (!formData.has('popular') && updates instanceof Object && 'popular' in updates) {
-      formData.set('popular', String(updates.popular));
+      formData.set('popular', (updates as any).popular ? 'true' : 'false');
     }
 
     // Log FormData contents for debugging
-    console.log('Update FormData contents:');
+    console.log('FormData contents:');
     for (const pair of (formData as any).entries()) {
       console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
     }
-
+    
     const response = await api.put(`/menu-items/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -293,23 +227,11 @@ export const updateMenuItem = async (
       toast.error('Failed to update menu item');
     }
     
-    return undefined;
+    throw error;
   }
 };
 
-export const deleteMenuItem = async (id: number): Promise<boolean> => {
-  try {
-    await api.delete(`/menu-items/${id}`);
-    toast.success('Menu item deleted successfully');
-    return true;
-  } catch (error) {
-    console.error(`Error deleting menu item ${id}:`, error);
-    toast.error('Failed to delete menu item');
-    return false;
-  }
-};
-
-// Offers API with file upload support
+// Offers
 export const getOffers = async (): Promise<OfferItem[]> => {
   try {
     const response = await api.get('/offers');
@@ -321,201 +243,39 @@ export const getOffers = async (): Promise<OfferItem[]> => {
   }
 };
 
-export const addOffer = async (
-  offer: Omit<OfferItem, 'id'> | FormData
-): Promise<OfferItem> => {
+export const addOffer = async (offer: FormData): Promise<OfferItem> => {
   try {
-    let response;
-    
-    if (offer instanceof FormData) {
-      // Log FormData contents for debugging
-      console.log('Offer FormData contents:');
-      for (const pair of (offer as any).entries()) {
-        console.log(pair[0] + ': ' + (pair[1] instanceof File ? pair[1].name : pair[1]));
-      }
-      
-      response = await api.post('/offers', offer, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    } else {
-      // Create FormData for regular JSON objects
-      const formData = new FormData();
-      Object.entries(offer).forEach(([key, value]) => {
-        if (key === 'imageFile' && value instanceof File) {
-          formData.append('image', value);
-        } else if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else if (value !== undefined) {
-          formData.append(key, String(value));
-        }
-      });
-
-      response = await api.post('/offers', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    }
-    
+    const response = await api.post('/offers', offer, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     toast.success('Offer added successfully');
     return response.data;
   } catch (error) {
     console.error('Error adding offer:', error);
-    
-    if (axios.isAxiosError(error) && error.response) {
-      toast.error(`Failed to add offer: ${error.response.data.message || error.message}`);
-    } else {
-      toast.error('Failed to add offer');
-    }
-    
+    toast.error('Failed to add offer');
     throw error;
   }
 };
 
-export const updateOffer = async (
-  id: number, 
-  updates: Partial<OfferItem> | FormData
-): Promise<OfferItem | undefined> => {
+export const updateOffer = async (id: number, offer: FormData): Promise<OfferItem> => {
   try {
-    let response;
-    
-    if (updates instanceof FormData) {
-      response = await api.put(`/offers/${id}`, updates, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    } else {
-      // Convert to FormData
-      const formData = new FormData();
-      Object.entries(updates).forEach(([key, value]) => {
-        if (key === 'imageFile' && value instanceof File) {
-          formData.append('image', value);
-        } else if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else if (value !== undefined) {
-          formData.append(key, String(value));
-        }
-      });
-
-      response = await api.put(`/offers/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    }
-    
+    const response = await api.put(`/offers/${id}`, offer, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     toast.success('Offer updated successfully');
     return response.data;
   } catch (error) {
     console.error(`Error updating offer ${id}:`, error);
-    
-    if (axios.isAxiosError(error) && error.response) {
-      toast.error(`Failed to update offer: ${error.response.data.message || error.message}`);
-    } else {
-      toast.error('Failed to update offer');
-    }
-    
-    return undefined;
-  }
-};
-
-export const getActiveOffers = async (): Promise<OfferItem[]> => {
-  try {
-    const offers = await getOffers();
-    const today = new Date().toISOString().split('T')[0];
-    
-    return offers.filter(offer => 
-      offer.isActive && 
-      offer.startDate <= today && 
-      offer.endDate >= today
-    );
-  } catch (error) {
-    console.error('Error fetching active offers:', error);
-    toast.error('Failed to load active offers');
-    return [];
-  }
-};
-
-// Categories API
-export const getMenuCategories = async (): Promise<string[]> => {
-  try {
-    const items = await getMenuItems();
-    const categories = [...new Set(items.map(item => item.category))];
-    return categories;
-  } catch (error) {
-    console.error('Error fetching menu categories:', error);
-    toast.error('Failed to load categories');
-    return [];
-  }
-};
-
-// Get upload directory information
-export const getUploadDirectoryInfo = async (): Promise<{ path: string, url: string }> => {
-  try {
-    const response = await api.get('/upload-path');
-    console.log('Upload directory info:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching upload directory info:', error);
-    return { path: 'server/uploads', url: '/uploads' };
-  }
-};
-
-// Feedback API
-export const getFeedback = async (): Promise<Feedback[]> => {
-  try {
-    const response = await api.get('/feedback');
-    console.log('Received feedback data:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching feedback:', error);
-    toast.error('Failed to load feedback');
-    return [];
-  }
-};
-
-export const getPublishedFeedback = async (): Promise<Feedback[]> => {
-  try {
-    const feedback = await getFeedback();
-    console.log('Filtering published feedback from:', feedback);
-    return feedback.filter(f => f.isPublished);
-  } catch (error) {
-    console.error('Error fetching published feedback:', error);
-    toast.error('Failed to load feedback');
-    return [];
-  }
-};
-
-export const addFeedback = async (feedback: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Promise<Feedback> => {
-  try {
-    console.log('Submitting feedback:', feedback);
-    const response = await api.post('/feedback', feedback);
-    console.log('Feedback submission response:', response.data);
-    toast.success('Feedback submitted successfully! Thank you for your comments.');
-    return response.data;
-  } catch (error) {
-    console.error('Error submitting feedback:', error);
-    toast.error('Failed to submit feedback');
+    toast.error('Failed to update offer');
     throw error;
   }
 };
 
-export const updateFeedbackPublication = async (id: number, isPublished: boolean): Promise<Feedback | undefined> => {
-  try {
-    const response = await api.patch(`/feedback/${id}/publish`, { isPublished });
-    toast.success(`Feedback ${isPublished ? 'published' : 'unpublished'} successfully`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error updating feedback ${id} publication:`, error);
-    toast.error('Failed to update feedback');
-    return undefined;
-  }
-};
-
-// Orders API
+// Orders
 export const getOrders = async (): Promise<Order[]> => {
   try {
     const response = await api.get('/orders');
@@ -527,41 +287,63 @@ export const getOrders = async (): Promise<Order[]> => {
   }
 };
 
-export const addOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> => {
-  try {
-    const response = await api.post('/orders', orderData);
-    toast.success('Order placed successfully!');
-    return response.data;
-  } catch (error) {
-    console.error('Error placing order:', error);
-    toast.error('Failed to place order');
-    throw error;
-  }
-};
-
-export const updateOrderStatus = async (id: number, status: Order['status']): Promise<Order | undefined> => {
+export const updateOrderStatus = async (id: number, status: string): Promise<Order> => {
   try {
     const response = await api.patch(`/orders/${id}/status`, { status });
-    toast.success(`Order status updated to ${status}`);
+    toast.success('Order status updated successfully');
     return response.data;
   } catch (error) {
     console.error(`Error updating order ${id} status:`, error);
     toast.error('Failed to update order status');
-    return undefined;
+    throw error;
   }
 };
 
-// Contact API
-export const sendContactMessage = async (contactData: { name: string; email: string; subject: string; message: string }): Promise<boolean> => {
+// Feedback
+export const getFeedback = async (): Promise<Feedback[]> => {
   try {
-    await api.post('/contact', contactData);
-    toast.success('Message sent successfully!');
-    return true;
+    const response = await api.get('/feedback');
+    return response.data;
   } catch (error) {
-    console.error('Error sending contact message:', error);
-    toast.error('Failed to send message');
-    return false;
+    console.error('Error fetching feedback:', error);
+    toast.error('Failed to load feedback');
+    return [];
   }
 };
 
-export default api;
+export const submitFeedback = async (feedback: Omit<Feedback, 'id' | 'createdAt' | 'isPublished'>): Promise<Feedback> => {
+  try {
+    const response = await api.post('/feedback', feedback);
+    toast.success('Feedback submitted successfully');
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    toast.error('Failed to submit feedback');
+    throw error;
+  }
+};
+
+export const updateFeedbackPublishStatus = async (id: number, isPublished: boolean): Promise<Feedback> => {
+  try {
+    const response = await api.patch(`/feedback/${id}/publish`, { isPublished });
+    toast.success('Feedback status updated successfully');
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating feedback ${id} publish status:`, error);
+    toast.error('Failed to update feedback status');
+    throw error;
+  }
+};
+
+// Contact
+export const submitContactForm = async (data: { name: string; email: string; subject: string; message: string }): Promise<{ id: number; message: string }> => {
+  try {
+    const response = await api.post('/contact', data);
+    toast.success('Contact form submitted successfully');
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting contact form:', error);
+    toast.error('Failed to submit contact form');
+    throw error;
+  }
+};
