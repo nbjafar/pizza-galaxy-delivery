@@ -105,7 +105,7 @@ const Debug = () => {
         <h1 className="text-3xl font-bold mb-6">System Diagnostics</h1>
         
         {healthStatus === 'offline' && (
-          <Alert variant="warning" className="mb-6">
+          <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Offline Mode Active</AlertTitle>
             <AlertDescription>
