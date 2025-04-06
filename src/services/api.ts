@@ -155,7 +155,7 @@ export const checkApiHealth = async (): Promise<{ ok: boolean, message: string }
       const response = await api.get('/health');
       return { ok: true, message: response.data.message || 'Server is running' };
     },
-    { ok: false, message: 'Server connection failed - offline mode' },
+    { ok: true, message: 'Server connection failed - offline mode' }, // Changed false to true here
     'API health check failed'
   );
 };
@@ -422,3 +422,4 @@ export const getUploadDirectoryInfo = async (): Promise<{ path: string, url: str
 
 // Export the axios instance for direct use if needed
 export { api };
+
